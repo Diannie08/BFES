@@ -11,7 +11,7 @@ const app = express();
 (async () => {
   try {
     await connectDB();
-    console.log('Database connection established');
+    console.log('Connected to MongoDB');
   } catch (error) {
     console.error('Database connection error:', error);
     process.exit(1);
@@ -20,14 +20,18 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:3000', // Allow your React app's origin
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'], // Allow multiple origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
 app.use(express.json());
 
 // Debug middleware to log all requests
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
+  console.log(`Received ${req.method} request to ${req.url}`);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
   next();
 });
 

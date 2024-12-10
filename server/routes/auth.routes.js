@@ -5,7 +5,60 @@ const googleClient = require('../config/google.config');
 const User = require('../models/user.model');
 const bcrypt = require('bcryptjs');
 
+// Comprehensive debug middleware for ALL routes
+router.use((req, res, next) => {
+  console.log('=== AUTH ROUTE MIDDLEWARE ===');
+  console.log('Full Request Details:');
+  console.log('Method:', req.method);
+  console.log('Path:', req.path);
+  console.log('Base URL:', req.baseUrl);
+  console.log('Original URL:', req.originalUrl);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  
+  // Log all registered routes
+  router.stack.forEach((r) => {
+    if (r.route && r.route.path) {
+      console.log(`Registered route: ${r.route.path}`);
+    }
+  });
+  
+  next();
+});
+
+// Explicit test routes
+router.get('/ping', (req, res) => {
+  res.json({ 
+    message: 'Pong!', 
+    timestamp: new Date().toISOString() 
+  });
+});
+
+router.post('/echo', (req, res) => {
+  res.json({
+    message: 'Request received',
+    method: req.method,
+    body: req.body,
+    headers: req.headers
+  });
+});
+
+// Debug route to verify auth routes are working
+router.get('/test-routes', (req, res) => {
+  console.log('Auth routes are accessible');
+  res.json({ 
+    message: 'Auth routes are working', 
+    routes: [
+      '/google-register',
+      '/google',
+      '/register',
+      '/login'
+    ]
+  });
+});
+
 router.post('/google', async (req, res) => {
+  console.log('Google authentication route called');
   try {
     const { token } = req.body;
     
@@ -51,6 +104,7 @@ router.post('/google', async (req, res) => {
 });
 
 router.post('/register', async (req, res) => {
+  console.log('Registration route called');
   try {
     const { firstName, lastName, email, password } = req.body;
 
@@ -95,12 +149,131 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// New route for Google registration with role selection
+router.post('/google-register', async (req, res) => {
+  console.log('=== EXPLICIT GOOGLE REGISTER ROUTE CALLED ===');
+  console.log('Full Request Details:');
+  console.log('Method:', req.method);
+  console.log('Path:', req.path);
+  console.log('Base URL:', req.baseUrl);
+  console.log('Original URL:', req.originalUrl);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+
+  try {
+    const { 
+      email, 
+      firstName, 
+      lastName, 
+      googleId, 
+      role 
+    } = req.body;
+
+    // Validate input with extensive logging
+    if (!email) {
+      console.error('Validation Error: Email is missing');
+      return res.status(400).json({ 
+        error: true,
+        message: 'Email is required',
+        receivedData: req.body
+      });
+    }
+
+    if (!role) {
+      console.error('Validation Error: Role is missing');
+      return res.status(400).json({ 
+        error: true,
+        message: 'Role is required',
+        receivedData: req.body
+      });
+    }
+
+    // Validate role
+    const validRoles = ['student', 'faculty', 'admin'];
+    if (!validRoles.includes(role)) {
+      console.error('Validation Error: Invalid role');
+      return res.status(400).json({ 
+        error: true,
+        message: 'Invalid role selected. Must be student, faculty, or admin.',
+        receivedData: req.body,
+        validRoles: validRoles
+      });
+    }
+
+    // Check if user already exists
+    let user = await User.findOne({ email });
+
+    if (user) {
+      console.log('User already exists, updating role');
+      // If user exists but no role is set, update the role
+      if (!user.role) {
+        user.role = role;
+        await user.save();
+      }
+    } else {
+      console.log('Creating new user');
+      // Create new user
+      // Generate a random password for Google users
+      const salt = await bcrypt.genSalt(10);
+      const randomPassword = Math.random().toString(36).slice(-8);
+      const hashedPassword = await bcrypt.hash(randomPassword, salt);
+
+      user = new User({
+        name: `${firstName} ${lastName}`,
+        email,
+        password: hashedPassword,
+        role,
+        googleId,
+        registrationType: 'google'
+      });
+
+      await user.save();
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        id: user._id, 
+        email: user.email, 
+        role: user.role 
+      }, 
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '30d' }
+    );
+
+    // Return user info and token
+    console.log('Registration successful');
+    res.status(200).json({
+      error: false,
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    console.error('=== GOOGLE REGISTRATION ERROR ===');
+    console.error('Full error:', error);
+    res.status(500).json({ 
+      error: true,
+      message: 'Server error during Google registration',
+      details: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // Test route to verify endpoint is working
 router.get('/test-login', (req, res) => {
+  console.log('Test login route called');
   res.json({ message: 'Login route is accessible' });
 });
 
 router.post('/login', async (req, res) => {
+  console.log('Login route called');
   try {
     const { email, password } = req.body;
 

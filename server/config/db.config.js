@@ -3,18 +3,14 @@ const mongoose = require('mongoose');
 // Set strictQuery to false to prepare for Mongoose 7
 mongoose.set('strictQuery', false);
 
-// Set Node TLS rejection
-// process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 const connectDB = async () => {
     try {
         const options = {
             useNewUrlParser: true,
             useUnifiedTopology: true,
             ssl: true,
-            sslValidate: false,
             tls: true,
-            tlsInsecure: true,
+            tlsAllowInvalidCertificates: true,
             family: 4
         };
 
