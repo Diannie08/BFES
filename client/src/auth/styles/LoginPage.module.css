@@ -1,0 +1,64 @@
+.loginPage {
+    background-color: rgba(5, 12, 156, 0.7);
+    padding-right: 80px;
+    height: 100vh;
+    overflow: hidden;
+  }
+  
+  .container {
+    gap: 20px;
+    display: flex;
+    height: 100%;
+  }
+  
+  .imageColumn {
+    display: flex;
+    flex-direction: column;
+    line-height: normal;
+    width: 56%;
+    margin-left: 0;
+    height: 100%;
+  }
+  
+  .heroImage {
+    object-fit: contain;
+    object-position: center;
+    width: 100%;
+    flex-grow: 1;
+    margin-top: -80px;
+  }
+  
+  .formColumn {
+    display: flex;
+    flex-direction: column;
+    line-height: normal;
+    width: 44%;
+    margin-left: 20px;
+    height: 100%;
+    overflow: hidden;
+  }
+  
+  @media (max-width: 991px) {
+    .loginPage {
+      padding-right: 20px;
+      height: auto;
+      min-height: 100vh;
+    }
+  
+    .container {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+    }
+  
+    .imageColumn,
+    .formColumn {
+      width: 100%;
+      margin-left: 0;
+    }
+  
+    .heroImage {
+      max-width: 100%;
+      margin-top: 40px;
+    }
+  }
