@@ -26,6 +26,34 @@ router.use((req, res, next) => {
   next();
 });
 
+// Middleware to verify JWT token
+const verifyToken = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ message: 'No token provided' });
+    }
+
+    jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
+      if (err) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+      
+      // Get fresh user data from database
+      const user = await User.findById(decoded.id).select('-password');
+      if (!user) {
+        return res.status(401).json({ message: 'User not found' });
+      }
+      
+      req.user = user;
+      next();
+    });
+  } catch (error) {
+    return res.status(401).json({ message: 'Authentication failed' });
+  }
+};
+
 // Explicit test routes
 router.get('/ping', (req, res) => {
   res.json({ 
@@ -52,7 +80,8 @@ router.get('/test-routes', (req, res) => {
       '/google-register',
       '/google',
       '/register',
-      '/login'
+      '/login',
+      '/verify-token'
     ]
   });
 });
@@ -273,43 +302,33 @@ router.get('/test-login', (req, res) => {
 });
 
 router.post('/login', async (req, res) => {
-  console.log('Login route called');
   try {
     const { email, password } = req.body;
-
-    // Validate input
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
-    }
-
-    // Check if email is from buksu domain
-    if (!email.endsWith('@buksu.edu.ph') && !email.endsWith('@student.buksu.edu.ph')) {
-      return res.status(400).json({ message: 'Please use a valid buksu.edu.ph email' });
-    }
-
-    // Find user in database
+    
+    // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Check password
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '1h' }
+      { id: user._id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
     );
 
+    // Send response
     res.json({
-      message: 'Login successful',
       token,
       user: {
+        id: user._id,
         email: user.email,
         name: user.name,
         role: user.role
@@ -317,8 +336,21 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error during login' });
   }
+});
+
+// Route to verify token
+router.get('/verify-token', verifyToken, (req, res) => {
+  res.json({ 
+    valid: true, 
+    user: {
+      id: req.user._id,
+      email: req.user.email,
+      name: req.user.name,
+      role: req.user.role
+    } 
+  });
 });
 
 module.exports = router;

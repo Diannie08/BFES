@@ -27,8 +27,8 @@ const AdminProfile = () => {
           top: 0,
           left: 0,
           right: 0,
-          height: '200px',
-          backgroundImage: 'url(/campus-bg.jpg)',
+          height: '400px',
+          backgroundImage: 'url(/buksu-building-bg.jpg)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           '&::after': {
@@ -38,8 +38,6 @@ const AdminProfile = () => {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(255, 255, 255, 0.7)',
-            backdropFilter: 'blur(5px)'
           }
         }}
       />

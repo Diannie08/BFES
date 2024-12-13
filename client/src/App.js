@@ -5,7 +5,6 @@ import { LoginPage } from './auth/LoginPage';
 import AdminRoutes from './routes/AdminRoutes';
 import StudentRoutes from './routes/StudentRoutes';
 import PrivateRoute from './components/PrivateRoute';
-import Unauthorized from './pages/Unauthorized';
 import { AuthProvider } from './context/AuthContext';
 
 function App() {
@@ -29,7 +28,6 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/unauthorized" element={<Unauthorized />} />
             <Route path="/" element={<Navigate to="/login" replace />} />
             
             {/* Protected Admin Routes for Admin and Faculty */}

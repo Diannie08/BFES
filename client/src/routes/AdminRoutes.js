@@ -9,7 +9,6 @@ import Dashboard from '../components/admin/Dashboard';
 import AdminRatings from '../components/admin/AdminRatings';
 import AdminCalendar from '../components/admin/AdminCalendar';
 import UserManagement from '../components/admin/UserManagement';
-import Unauthorized from '../pages/Unauthorized';
 import { Box, Typography, Button } from '@mui/material';
 
 // Custom Unauthorized Component with more details

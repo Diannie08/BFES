@@ -3,42 +3,81 @@ import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
+// Create axios instance with default config
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
-    // Initialize user from localStorage on first load
     const storedUser = localStorage.getItem('user');
     return storedUser ? JSON.parse(storedUser) : null;
   });
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    const token = localStorage.getItem('token');
+    return !!token;
+  });
+  
   const [loading, setLoading] = useState(true);
+
+  // Set up axios interceptor for token
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+
+    // Add response interceptor to handle 401 errors
+    const interceptor = api.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response && error.response.status === 401) {
+          // Auto logout if 401 response returned from api
+          logout();
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      // Remove interceptor on cleanup
+      api.interceptors.response.eject(interceptor);
+    };
+  }, []);
 
   // Check authentication on app load
   useEffect(() => {
     const checkAuthStatus = async () => {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        setIsAuthenticated(false);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
       try {
-        const token = localStorage.getItem('token');
-        const storedUser = localStorage.getItem('user');
-
-        if (token && storedUser) {
-          // Verify token with backend
-          const response = await axios.get(`${API_URL}/auth/verify-token`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-
-          if (response.data.valid) {
-            const parsedUser = JSON.parse(storedUser);
-            setUser(parsedUser);
-            setIsAuthenticated(true);
-          } else {
-            throw new Error('Invalid token');
-          }
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        const response = await api.get('/auth/verify-token');
+        
+        if (response.data.valid) {
+          setUser(response.data.user);
+          setIsAuthenticated(true);
+        } else {
+          throw new Error('Invalid token');
         }
       } catch (error) {
-        // Token invalid or expired
+        console.error('Auth check failed:', error);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        delete api.defaults.headers.common['Authorization'];
         setUser(null);
         setIsAuthenticated(false);
       } finally {
@@ -51,20 +90,21 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
-      const response = await axios.post(`${API_URL}/auth/login`, credentials);
+      const response = await api.post('/auth/login', credentials);
       const { token, user } = response.data;
       
-      // Store token and user securely
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       
       setUser(user);
       setIsAuthenticated(true);
       return user;
     } catch (error) {
-      // Clear any existing token
+      console.error('Login failed:', error);
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      delete api.defaults.headers.common['Authorization'];
       setUser(null);
       setIsAuthenticated(false);
       throw error;
@@ -74,6 +114,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    delete api.defaults.headers.common['Authorization'];
     setUser(null);
     setIsAuthenticated(false);
   };
@@ -91,7 +132,6 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// Custom hook to use the auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
