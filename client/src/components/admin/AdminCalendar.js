@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -8,53 +8,78 @@ import {
   ListItemText,
   ListItemIcon,
   Divider,
-  TextField
+  TextField,
+  Modal,
+  Button,
+  Grid
 } from '@mui/material';
 import { 
   EventNote as EventIcon, 
   AccessTime as TimeIcon,
   LocationOn as LocationIcon 
 } from '@mui/icons-material';
+import evaluationService from '../../services/evaluation.service';
 
 const AdminCalendar = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [events, setEvents] = useState([
-    {
-      id: 1,
-      title: 'Faculty Meeting',
-      date: new Date(2024, 0, 15),
-      time: '10:00 AM',
-      location: 'Conference Room A'
-    },
-    {
-      id: 2,
-      title: 'Student Evaluation Workshop',
-      date: new Date(2024, 0, 20),
-      time: '2:00 PM',
-      location: 'Lecture Hall 3'
-    },
-    {
-      id: 3,
-      title: 'Department Review',
-      date: new Date(2024, 0, 25),
-      time: '9:30 AM',
-      location: 'Admin Building'
-    }
-  ]);
+  const [evaluationResults, setEvaluationResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   // Custom date formatting to avoid locale issues
   const formatDate = (date) => {
     return date.toISOString().split('T')[0];
   };
 
+  const fetchResultsByDate = async (date) => {
+    setLoading(true);
+    try {
+      const results = await evaluationService.getEvaluationResultsByDate(date);
+      console.log('Fetched results:', results); // Log the results
+      setEvaluationResults(results);
+    } catch (err) {
+      setError('Failed to load evaluation results');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchResultsByDate(selectedDate);
+  }, [selectedDate]);
+
   const handleDateChange = (e) => {
     const newDate = new Date(e.target.value);
     setSelectedDate(newDate);
   };
 
-  const filteredEvents = events.filter(event => 
-    event.date.toDateString() === selectedDate.toDateString()
-  );
+  const handleEventClick = (event) => {
+    console.log('Event:', event); // Debugging line to check the event structure
+    const createdAt = new Date(event.evaluationForm.createdAt);
+    const updatedAt = new Date(event.evaluationForm.updatedAt);
+
+    // Check if the dates are valid
+    const isValidCreatedAt = !isNaN(createdAt.getTime());
+    const isValidUpdatedAt = !isNaN(updatedAt.getTime());
+
+    setSelectedEvent({
+      evaluationForm: event.evaluationForm,
+      date: isValidCreatedAt && isValidUpdatedAt 
+        ? createdAt.toLocaleDateString() + ' - ' + updatedAt.toLocaleDateString() 
+        : 'Invalid Date', // Fallback for invalid dates
+      status: event.evaluationForm.status,
+      ratings: event.ratings || 'No ratings available',
+    });
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setSelectedEvent(null);
+  };
 
   return (
     <Box sx={{ 
@@ -104,7 +129,9 @@ const AdminCalendar = () => {
           bgcolor: 'white', 
           p: 3, 
           borderRadius: 3,
-          width: '40%' 
+          width: '40%', 
+          maxHeight: '1000px', 
+          overflowY: 'auto' 
         }}
       >
         <Typography 
@@ -118,28 +145,19 @@ const AdminCalendar = () => {
           Events on {formatDate(selectedDate)}
         </Typography>
 
-        {filteredEvents.length > 0 ? (
+        {loading && <p>Loading...</p>}
+        {error && <p>{error}</p>}
+        {evaluationResults.length > 0 ? (
           <List>
-            {filteredEvents.map((event) => (
+            {evaluationResults.map((event) => (
               <React.Fragment key={event.id}>
-                <ListItem>
+                <ListItem button onClick={() => handleEventClick(event)}>
                   <ListItemIcon>
                     <EventIcon color="primary" />
                   </ListItemIcon>
-                  <ListItemText
-                    primary={event.title}
-                    secondary={
-                      <>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <TimeIcon fontSize="small" />
-                          {event.time}
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <LocationIcon fontSize="small" />
-                          {event.location}
-                        </Box>
-                      </>
-                    }
+                  <ListItemText 
+                    primary={event.evaluationForm.title} 
+                    secondary={event.startTime + ' - ' + event.endTime} 
                   />
                 </ListItem>
                 <Divider variant="inset" component="li" />
@@ -156,6 +174,37 @@ const AdminCalendar = () => {
           </Typography>
         )}
       </Paper>
+
+      {/* Modal for Event Details */}
+      <Modal open={modalOpen} onClose={handleCloseModal}>
+        <Box sx={{ 
+          p: 4, 
+          bgcolor: 'white', 
+          borderRadius: 2, 
+          width: '400px', 
+          margin: 'auto', 
+          mt: '100px', 
+          boxShadow: 3 // Add shadow for depth
+        }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>Event Details</Typography>
+          {selectedEvent && (
+            <>
+              <Typography variant="body1" sx={{ fontWeight: 'bold' }}>Title:</Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>{selectedEvent.evaluationForm.title}</Typography>
+              
+              <Typography variant="body1" sx={{ fontWeight: 'bold' }}>Date:</Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>{selectedEvent.date}</Typography>
+              
+              <Typography variant="body1" sx={{ fontWeight: 'bold' }}>Status:</Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>{selectedEvent.status}</Typography>
+              
+              <Typography variant="body1" sx={{ fontWeight: 'bold' }}>Ratings:</Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>{selectedEvent.ratings}</Typography>
+            </>
+          )}
+          <Button variant="contained" onClick={handleCloseModal} sx={{ mt: 2 }}>Close</Button>
+        </Box>
+      </Modal>
     </Box>
   );
 };
