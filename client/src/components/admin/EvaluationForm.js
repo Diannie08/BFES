@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Container,
@@ -15,6 +15,7 @@ import {
   Box,
   Divider,
   Alert,
+  CircularProgress,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -27,6 +28,7 @@ const EvaluationForm = () => {
   const { id } = useParams();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -40,7 +42,13 @@ const EvaluationForm = () => {
     ]
   });
 
-  const loadForm = useCallback(async () => {
+  useEffect(() => {
+    if (id) {
+      loadForm();
+    }
+  }, [id]);
+
+  const loadForm = async () => {
     try {
       setLoading(true);
       const form = await evaluationService.getFormById(id);
@@ -51,13 +59,7 @@ const EvaluationForm = () => {
     } finally {
       setLoading(false);
     }
-  }, [id]);
-
-  useEffect(() => {
-    if (id) {
-      loadForm();
-    }
-  }, [id, loadForm]);
+  };
 
   const handleQuestionAdd = () => {
     setFormData({
@@ -96,55 +98,55 @@ const EvaluationForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
 
     try {
       if (id) {
         await evaluationService.updateForm(id, formData);
+        setSuccess('Form updated successfully!');
       } else {
         await evaluationService.createForm(formData);
+        setSuccess('Form created successfully!');
       }
-      navigate('/admin/evaluation');
+      setTimeout(() => navigate('/admin/evaluation'), 2000);
     } catch (err) {
-      setError('Failed to save evaluation form');
-      console.error(err);
+      setError(err.response?.data?.message || 'Failed to save form');
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
+  if (loading && id) {
     return (
-      <Container maxWidth="md">
-        <Typography>Loading...</Typography>
+      <Container sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+        <CircularProgress />
       </Container>
     );
   }
 
   return (
-    <Container maxWidth="md">
-      <Paper sx={{ p: 4, mt: 4 }}>
-        <Typography variant="h5" gutterBottom>
+    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+      <Paper elevation={3} sx={{ p: 4 }}>
+        <Typography variant="h4" gutterBottom>
           {id ? 'Edit Evaluation Form' : 'Create Evaluation Form'}
         </Typography>
-
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-
+        
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+        
         <form onSubmit={handleSubmit}>
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Form Title"
+                label="Title"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 required
               />
             </Grid>
+            
             <Grid item xs={12}>
               <TextField
                 fullWidth
@@ -156,64 +158,69 @@ const EvaluationForm = () => {
                 required
               />
             </Grid>
+            
             <Grid item xs={12}>
               <FormControl fullWidth>
                 <InputLabel>Target Audience</InputLabel>
                 <Select
                   value={formData.targetAudience}
                   onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
-                  label="Target Audience"
+                  required
                 >
-                  <MenuItem value="student">Students</MenuItem>
-                  <MenuItem value="peer">Faculty Peers</MenuItem>
-                  <MenuItem value="self">Self Assessment</MenuItem>
+                  <MenuItem value="student">Student</MenuItem>
+                  <MenuItem value="peer">Peer</MenuItem>
+                  <MenuItem value="self">Self</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
-
+            
             <Grid item xs={12}>
               <Typography variant="h6" gutterBottom>
                 Questions
               </Typography>
+              <Divider sx={{ mb: 2 }} />
+              
               {formData.questions.map((question, index) => (
-                <Box key={index} sx={{ mb: 3 }}>
-                  <Grid container spacing={2} alignItems="center">
+                <Box key={index} sx={{ mb: 3, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                  <Grid container spacing={2}>
                     <Grid item xs={11}>
                       <TextField
                         fullWidth
-                        label={`Question ${index + 1}`}
+                        label="Question Text"
                         value={question.text}
                         onChange={(e) => handleQuestionChange(index, 'text', e.target.value)}
                         required
                       />
                     </Grid>
+                    
                     <Grid item xs={1}>
-                      <IconButton 
-                        color="error" 
+                      <IconButton
+                        color="error"
                         onClick={() => handleQuestionDelete(index)}
                         disabled={formData.questions.length === 1}
                       >
                         <DeleteIcon />
                       </IconButton>
                     </Grid>
+                    
                     <Grid item xs={12}>
                       <FormControl fullWidth>
                         <InputLabel>Question Type</InputLabel>
                         <Select
                           value={question.type}
                           onChange={(e) => handleQuestionChange(index, 'type', e.target.value)}
-                          label="Question Type"
+                          required
                         >
-                          <MenuItem value="rating">Rating (1-5)</MenuItem>
-                          <MenuItem value="text">Text Answer</MenuItem>
+                          <MenuItem value="rating">Rating</MenuItem>
+                          <MenuItem value="text">Text</MenuItem>
                           <MenuItem value="multiple_choice">Multiple Choice</MenuItem>
                         </Select>
                       </FormControl>
                     </Grid>
                   </Grid>
-                  <Divider sx={{ my: 2 }} />
                 </Box>
               ))}
+              
               <Button
                 startIcon={<AddIcon />}
                 onClick={handleQuestionAdd}
@@ -223,27 +230,18 @@ const EvaluationForm = () => {
                 Add Question
               </Button>
             </Grid>
-
+            
             <Grid item xs={12}>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  color="primary"
-                  size="large"
-                  disabled={loading}
-                >
-                  {id ? 'Update Form' : 'Create Form'}
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  size="large"
-                  onClick={() => navigate('/admin/evaluation')}
-                >
-                  Cancel
-                </Button>
-              </Box>
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                size="large"
+                disabled={loading}
+                sx={{ mt: 2 }}
+              >
+                {loading ? <CircularProgress size={24} /> : (id ? 'Update Form' : 'Create Form')}
+              </Button>
             </Grid>
           </Grid>
         </form>

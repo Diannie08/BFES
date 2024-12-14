@@ -1,176 +1,465 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import {
   Container,
-  Typography,
   Grid,
-  Card,
-  CardContent,
-  CardActions,
+  Paper,
+  Typography,
   Button,
-  Box,
-  Alert,
+  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Box,
+  Chip,
+  Tooltip,
+  Rating,
+  Collapse,
   CircularProgress,
+  Card,
+  CardContent,
+  Snackbar,
+  Alert,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon
 } from '@mui/material';
-import { AddCircleOutline as AddCircleOutlineIcon } from '@mui/icons-material';
+
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  CheckCircle as ActiveIcon,
+  Cancel as InactiveIcon,
+  Assessment as AssessmentIcon,
+  KeyboardArrowUp as KeyboardArrowUpIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
+  ArrowBack as ArrowBackIcon,
+  ArrowForward as ArrowForwardIcon
+} from '@mui/icons-material';
+
 import evaluationService from '../../services/evaluation.service';
 
 const Evaluation = () => {
   const navigate = useNavigate();
-  const [evaluationForms, setEvaluationForms] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, formId: null });
+  const [forms, setForms] = useState([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedForm, setSelectedForm] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [resultsDialog, setResultsDialog] = useState({ open: false, formId: null });
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [expandedRows, setExpandedRows] = useState({});
 
   useEffect(() => {
-    loadForms();
+    fetchForms();
   }, []);
 
-  const loadForms = async () => {
+  const fetchForms = async () => {
     try {
-      setLoading(true);
-      const forms = await evaluationService.getAllForms();
-      setEvaluationForms(forms);
-    } catch (err) {
-      setError('Failed to load evaluation forms');
-      console.error(err);
+      const response = await evaluationService.getAllForms();
+      setForms(response);
+    } catch (error) {
+      console.error('Error fetching forms:', error);
+      showSnackbar('Error fetching evaluation forms', 'error');
+    }
+  };
+
+  const handleCreateForm = () => {
+    navigate('/admin/evaluation/create');
+  };
+
+  const handleEditForm = (formId) => {
+    navigate(`/admin/evaluation/edit/${formId}`);
+  };
+
+  const handleDeleteClick = (form) => {
+    setSelectedForm(form);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      await evaluationService.deleteForm(selectedForm._id);
+      setDeleteDialogOpen(false);
+      showSnackbar('Form deleted successfully', 'success');
+      fetchForms();
+    } catch (error) {
+      console.error('Error deleting form:', error);
+      showSnackbar('Error deleting form', 'error');
+    }
+  };
+
+  const handleStatusChange = async (form) => {
+    try {
+      const updatedForm = { ...form };
+      updatedForm.status = form.status === 'Active' ? 'Draft' : 'Active';
+      await evaluationService.updateForm(form._id, updatedForm);
+      showSnackbar(`Form ${updatedForm.status === 'Active' ? 'activated' : 'deactivated'} successfully`, 'success');
+      fetchForms();
+    } catch (error) {
+      console.error('Error updating form status:', error);
+      showSnackbar('Error updating form status', 'error');
+    }
+  };
+
+  const handleViewResults = async (formId) => {
+    setLoading(true);
+    setResultsDialog({ open: true, formId });
+    try {
+      const response = await evaluationService.getEvaluationResults();
+      console.log('Got evaluation results:', response);
+      
+      // Filter results for this specific form
+      const formResults = response.filter(r => r.evaluationForm._id === formId);
+      console.log('Filtered results for form:', formResults);
+      
+      setResults(formResults);
+    } catch (error) {
+      console.error('Error fetching results:', error);
+      showSnackbar('Error fetching evaluation results', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async () => {
-    try {
-      await evaluationService.deleteForm(deleteDialog.formId);
-      setDeleteDialog({ open: false, formId: null });
-      loadForms(); // Reload the forms list
-    } catch (err) {
-      setError('Failed to delete evaluation form');
-      console.error(err);
+  const calculateAverageRating = (responses) => {
+    const ratings = responses.filter(r => r.rating !== undefined && r.rating !== null)
+                           .map(r => r.rating);
+    if (ratings.length === 0) return 0;
+    const average = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+    return Number(average.toFixed(2));
+  };
+
+  const toggleRowExpansion = (rowId) => {
+    setExpandedRows(prev => ({
+      ...prev,
+      [rowId]: !prev[rowId]
+    }));
+  };
+
+  const showSnackbar = (message, severity) => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Active':
+        return 'success';
+      case 'Draft':
+        return 'warning';
+      default:
+        return 'default';
     }
   };
 
-  const handleStatusChange = async (id, newStatus) => {
-    try {
-      await evaluationService.updateFormStatus(id, newStatus);
-      loadForms(); // Reload the forms list
-    } catch (err) {
-      setError('Failed to update form status');
-      console.error(err);
+  const getTargetColor = (target) => {
+    switch (target) {
+      case 'Student':
+        return '#2196f3';
+      case 'Self':
+        return '#4caf50';
+      case 'Peer':
+        return '#ff9800';
+      default:
+        return '#757575';
     }
   };
 
-  if (loading) {
+  const ResultsDialog = () => {
+    if (!resultsDialog.open) return null;
+
     return (
-      <Container maxWidth="lg" sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Container>
+      <Dialog
+        open={resultsDialog.open}
+        onClose={() => setResultsDialog({ open: false, formId: null })}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Evaluation Results
+          {loading && <CircularProgress size={24} style={{ marginLeft: 15 }} />}
+        </DialogTitle>
+        <DialogContent>
+          {results.length > 0 ? (
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell />
+                    <TableCell>Instructor</TableCell>
+                    <TableCell align="right">Average Rating</TableCell>
+                    <TableCell align="right">Number of Responses</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {results.map((result) => {
+                    const avgRating = calculateAverageRating(result.responses);
+                    const numResponses = result.responses.length;
+                    
+                    return (
+                      <React.Fragment key={result._id}>
+                        <TableRow>
+                          <TableCell>
+                            <IconButton
+                              size="small"
+                              onClick={() => toggleRowExpansion(result._id)}
+                            >
+                              {expandedRows[result._id] ? (
+                                <KeyboardArrowUpIcon />
+                              ) : (
+                                <KeyboardArrowDownIcon />
+                              )}
+                            </IconButton>
+                          </TableCell>
+                          <TableCell>{result.instructor.name}</TableCell>
+                          <TableCell align="right">
+                            {avgRating > 0 ? (
+                              <Rating value={avgRating} precision={0.1} readOnly />
+                            ) : (
+                              'N/A'
+                            )}
+                          </TableCell>
+                          <TableCell align="right">{numResponses}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell
+                            style={{ paddingBottom: 0, paddingTop: 0 }}
+                            colSpan={6}
+                          >
+                            <Collapse
+                              in={expandedRows[result._id]}
+                              timeout="auto"
+                              unmountOnExit
+                            >
+                              <Box margin={1}>
+                                <Typography variant="h6" gutterBottom component="div">
+                                  Detailed Responses
+                                </Typography>
+                                <Table size="small">
+                                  <TableHead>
+                                    <TableRow>
+                                      <TableCell>Question</TableCell>
+                                      <TableCell>Response</TableCell>
+                                      <TableCell>Student</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {result.responses.map((response, idx) => (
+                                      <TableRow key={idx}>
+                                        <TableCell>{response.questionText}</TableCell>
+                                        <TableCell>
+                                          {response.questionType === 'rating' ? (
+                                            <Rating
+                                              value={response.rating}
+                                              readOnly
+                                            />
+                                          ) : (
+                                            response.answer
+                                          )}
+                                        </TableCell>
+                                        <TableCell>{response.student.name}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </Box>
+                            </Collapse>
+                          </TableCell>
+                        </TableRow>
+                      </React.Fragment>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Typography>No evaluation results found.</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setResultsDialog({ open: false, formId: null })}
+            color="primary"
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     );
-  }
+  };
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+        <Typography variant="h4" component="h1" fontWeight="bold" color="primary">
           Evaluation Forms
         </Typography>
         <Button
           variant="contained"
           color="primary"
-          startIcon={<AddCircleOutlineIcon />}
-          onClick={() => navigate('/admin/evaluation/create')}
+          startIcon={<AddIcon />}
+          onClick={handleCreateForm}
+          sx={{ 
+            borderRadius: 2,
+            textTransform: 'none',
+            fontWeight: 'bold'
+          }}
         >
           Create New Form
         </Button>
       </Box>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-      
       <Grid container spacing={3}>
-        {evaluationForms.map((form) => (
-          <Grid item xs={12} md={4} key={form._id}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  {form.title}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  {form.description}
-                </Typography>
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  Target: {form.targetAudience.charAt(0).toUpperCase() + form.targetAudience.slice(1)}
-                </Typography>
-                <Typography 
-                  variant="subtitle2" 
-                  sx={{ 
-                    mt: 2,
-                    color: form.status === 'active' ? 'success.main' : 
-                           form.status === 'draft' ? 'warning.main' : 'error.main'
-                  }}
+        {forms.map((form) => (
+          <Grid item xs={12} md={6} lg={4} key={form._id}>
+            <Card 
+              elevation={2}
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 6,
+                }
+              }}
+            >
+              <CardContent sx={{ flexGrow: 1, p: 3 }}>
+                <Box mb={2}>
+                  <Typography variant="h6" component="h2" gutterBottom fontWeight="bold">
+                    {form.title}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2, minHeight: '40px' }}>
+                    {form.description}
+                  </Typography>
+                </Box>
+
+                <Box display="flex" gap={1} mb={2}>
+                  <Chip
+                    label={form.targetAudience}
+                    size="small"
+                    sx={{
+                      backgroundColor: getTargetColor(form.targetAudience),
+                      color: 'white',
+                      fontWeight: 'medium'
+                    }}
+                  />
+                  <Chip
+                    label={form.status}
+                    size="small"
+                    color={getStatusColor(form.status)}
+                    icon={form.status === 'Active' ? <ActiveIcon /> : <InactiveIcon />}
+                  />
+                </Box>
+
+                <Box 
+                  display="flex" 
+                  justifyContent="flex-end"
+                  gap={1}
+                  sx={{ mt: 'auto' }}
                 >
-                  Status: {form.status.charAt(0).toUpperCase() + form.status.slice(1)}
-                </Typography>
+                  <Tooltip title={form.status === 'Active' ? 'Deactivate' : 'Activate'}>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleStatusChange(form)}
+                      color={form.status === 'Active' ? 'error' : 'success'}
+                      sx={{ 
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.08)' }
+                      }}
+                    >
+                      {form.status === 'Active' ? <InactiveIcon /> : <ActiveIcon />}
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Edit Form">
+                    <IconButton
+                      size="small"
+                      onClick={() => handleEditForm(form._id)}
+                      color="primary"
+                      sx={{ 
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.08)' }
+                      }}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Delete Form">
+                    <IconButton
+                      size="small"
+                      onClick={() => handleDeleteClick(form)}
+                      color="error"
+                      sx={{ 
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.08)' }
+                      }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="View Results">
+                    <IconButton
+                      size="small"
+                      onClick={() => handleViewResults(form._id)}
+                      color="info"
+                      sx={{ 
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.08)' }
+                      }}
+                    >
+                      <AssessmentIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
               </CardContent>
-              <CardActions>
-                <Button 
-                  size="small" 
-                  color="primary"
-                  onClick={() => navigate(`/admin/evaluation/edit/${form._id}`)}
-                >
-                  Edit
-                </Button>
-                <Button 
-                  size="small" 
-                  color="error"
-                  onClick={() => setDeleteDialog({ open: true, formId: form._id })}
-                >
-                  Delete
-                </Button>
-                {form.status === 'draft' && (
-                  <Button
-                    size="small"
-                    color="success"
-                    onClick={() => handleStatusChange(form._id, 'active')}
-                  >
-                    Activate
-                  </Button>
-                )}
-                {form.status === 'active' && (
-                  <Button
-                    size="small"
-                    color="warning"
-                    onClick={() => handleStatusChange(form._id, 'inactive')}
-                  >
-                    Deactivate
-                  </Button>
-                )}
-              </CardActions>
             </Card>
           </Grid>
         ))}
       </Grid>
 
-      <Dialog
-        open={deleteDialog.open}
-        onClose={() => setDeleteDialog({ open: false, formId: null })}
-      >
+      <ResultsDialog />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
         <DialogTitle>Delete Evaluation Form</DialogTitle>
         <DialogContent>
-          Are you sure you want to delete this evaluation form? This action cannot be undone.
+          <Typography>
+            Are you sure you want to delete "{selectedForm?.title}"? This action cannot be undone.
+          </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialog({ open: false, formId: null })}>Cancel</Button>
-          <Button onClick={handleDelete} color="error">Delete</Button>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

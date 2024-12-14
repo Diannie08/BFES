@@ -4,6 +4,7 @@ const cors = require('cors');
 const connectDB = require('./config/db.config');
 const authRoutes = require('./routes/auth.routes');
 const testRoutes = require('./routes/test.routes');
+const evaluationRoutes = require('./routes/evaluation.routes'); // Add evaluation routes
 
 const app = express();
 
@@ -30,9 +31,13 @@ app.use((req, res, next) => {
   next();
 });
 
+// Connect to MongoDB
+connectDB();
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/test', testRoutes);
+app.use('/api/evaluation', evaluationRoutes); // Register evaluation routes
 
 app.get('/api', (req, res) => {
     res.json({ message: "Welcome to IESv2 Server!" });
@@ -49,21 +54,14 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-// Start server and connect to database
 const startServer = async () => {
   try {
-    await connectDB();
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
-      console.log('Available routes:');
-      console.log('- /api/auth/login (POST)');
-      console.log('- /api/auth/test-login (GET)');
-      console.log('- /api/auth/register (POST)');
     });
   } catch (error) {
     console.error('Failed to start server:', error);
-    // Don't exit process, let it retry database connection
-    setTimeout(startServer, 5000); // Retry after 5 seconds
+    process.exit(1);
   }
 };
 

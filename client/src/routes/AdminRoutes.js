@@ -5,6 +5,7 @@ import AdminLayout from '../components/admin/AdminLayout';
 import AdminProfile from '../components/admin/AdminProfile';
 import Evaluation from '../components/admin/Evaluation';
 import EvaluationForm from '../components/admin/EvaluationForm';
+import EvaluationResults from '../components/admin/EvaluationResults';
 import Dashboard from '../components/admin/Dashboard';
 import AdminRatings from '../components/admin/AdminRatings';
 import AdminCalendar from '../components/admin/AdminCalendar';
@@ -152,6 +153,14 @@ const AdminRoutes = () => {
           element={
             <ProtectedRoute>
               <Evaluation />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="evaluation/results" 
+          element={
+            <ProtectedRoute>
+              <EvaluationResults />
             </ProtectedRoute>
           } 
         />

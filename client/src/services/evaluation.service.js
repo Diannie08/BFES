@@ -1,64 +1,145 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// Use the API URL from environment variables, or default to localhost
+const API_URL = 'http://localhost:5000/api';
+
+// Axios instance with default config
+const axiosInstance = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add request interceptor to add token
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    console.log('Making request:', {
+      url: config.url,
+      method: config.method,
+      headers: config.headers,
+      data: config.data
+    });
+    return config;
+  },
+  (error) => {
+    console.error('Request interceptor error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for debugging
+axiosInstance.interceptors.response.use(
+  (response) => {
+    console.log('Response received:', {
+      status: response.status,
+      data: response.data
+    });
+    return response;
+  },
+  (error) => {
+    console.error('Response error:', error.response || error);
+    return Promise.reject(error);
+  }
+);
 
 class EvaluationService {
+  // Form Management
   async createForm(formData) {
-    const response = await axios.post(`${API_URL}/evaluation`, formData, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-    return response.data;
+    try {
+      const response = await axiosInstance.post('/evaluation', formData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating form:', error.response?.data || error.message);
+      throw error;
+    }
   }
 
   async getAllForms() {
-    const response = await axios.get(`${API_URL}/evaluation`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-    return response.data;
+    try {
+      console.log('Fetching all forms...');
+      const response = await axiosInstance.get('/evaluation');
+      console.log('Forms fetched:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching forms:', error.response?.data || error.message);
+      throw error;
+    }
   }
 
   async getFormById(id) {
-    const response = await axios.get(`${API_URL}/evaluation/${id}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-    return response.data;
+    try {
+      const response = await axiosInstance.get(`/evaluation/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching form:', error.response?.data || error.message);
+      throw error;
+    }
   }
 
   async updateForm(id, formData) {
-    const response = await axios.put(`${API_URL}/evaluation/${id}`, formData, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-    return response.data;
+    try {
+      const response = await axiosInstance.put(`/evaluation/${id}`, formData);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating form:', error.response?.data || error.message);
+      throw error;
+    }
   }
 
   async deleteForm(id) {
-    const response = await axios.delete(`${API_URL}/evaluation/${id}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-    return response.data;
+    try {
+      const response = await axiosInstance.delete(`/evaluation/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting form:', error.response?.data || error.message);
+      throw error;
+    }
   }
 
-  async updateFormStatus(id, status) {
-    const response = await axios.patch(
-      `${API_URL}/evaluation/${id}/status`,
-      { status },
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      }
-    );
-    return response.data;
+  // Evaluation Results
+  async getEvaluationResults() {
+    try {
+      const response = await axiosInstance.get('/evaluation/results');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching evaluation results:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  async getEvaluationResultById(id) {
+    try {
+      const response = await axiosInstance.get(`/evaluation/results/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching evaluation result:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  async getEvaluationResultsByDate(date) {
+    try {
+      const response = await axiosInstance.get(`/evaluation/results/date/${date}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching evaluation results by date:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  async submitEvaluation(evaluationId, responses) {
+    try {
+      const response = await axiosInstance.post(`/evaluation/${evaluationId}/submit`, responses);
+      return response.data;
+    } catch (error) {
+      console.error('Error submitting evaluation:', error.response?.data || error.message);
+      throw error;
+    }
   }
 }
 
