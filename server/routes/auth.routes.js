@@ -3,7 +3,22 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const googleClient = require('../config/google.config');
 const User = require('../models/user.model');
+const EvaluationForm = require('../models/evaluationForm.model'); // Assuming you have this model
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
+const axios = require('axios'); // Added axios for reCAPTCHA verification
+
+// Create a transporter for sending emails
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER || 'ies595871@gmail.com',
+    pass: process.env.EMAIL_PASS || 'eran atdc ezij yfhs'
+  }
+});
+
+// Store verification codes temporarily (in production, use Redis or a database)
+const verificationCodes = new Map();
 
 // Comprehensive debug middleware for ALL routes
 router.use((req, res, next) => {
@@ -303,8 +318,24 @@ router.get('/test-login', (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    
+    const { email, password, recaptchaResponse } = req.body;
+
+    // Verify reCAPTCHA
+    const recaptchaVerification = await axios.post(
+      'https://www.google.com/recaptcha/api/siteverify',
+      null,
+      {
+        params: {
+          secret: process.env.RECAPTCHA_SECRET_KEY || '6LeBAZ0qAAAAAGaeOOQD1nRb4-bNP5wj-z-IcYcq',
+          response: recaptchaResponse
+        }
+      }
+    );
+
+    if (!recaptchaVerification.data.success) {
+      return res.status(400).json({ message: 'reCAPTCHA verification failed' });
+    }
+
     // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
@@ -353,4 +384,116 @@ router.get('/verify-token', verifyToken, (req, res) => {
   });
 });
 
+// Route to handle forgot password request
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Generate a random 6-digit verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Store the code with expiration (15 minutes)
+    verificationCodes.set(email, {
+      code: verificationCode,
+      expiresAt: Date.now() + 15 * 60 * 1000 // 15 minutes
+    });
+
+    // Send verification email
+    const mailOptions = {
+      from: process.env.EMAIL_USER || 'ies595871@gmail.com',
+      to: email,
+      subject: 'Password Reset Verification Code',
+      html: `
+        <h1>Password Reset Request</h1>
+        <p>You have requested to reset your password. Here is your verification code:</p>
+        <h2 style="color: #1a73e8; font-size: 24px; letter-spacing: 2px;">${verificationCode}</h2>
+        <p>This code will expire in 15 minutes.</p>
+        <p>If you did not request this, please ignore this email.</p>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.json({ message: 'Verification code sent to email' });
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ message: 'Error sending verification code' });
+  }
+});
+
+// Route to verify the code
+router.post('/verify-code', async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    const storedData = verificationCodes.get(email);
+    if (!storedData) {
+      return res.status(400).json({ message: 'No verification code found' });
+    }
+
+    if (Date.now() > storedData.expiresAt) {
+      verificationCodes.delete(email);
+      return res.status(400).json({ message: 'Verification code has expired' });
+    }
+
+    if (storedData.code !== code) {
+      return res.status(400).json({ message: 'Invalid verification code' });
+    }
+
+    res.json({ message: 'Code verified successfully' });
+
+  } catch (error) {
+    console.error('Code verification error:', error);
+    res.status(500).json({ message: 'Error verifying code' });
+  }
+});
+
+// Route to reset password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    // Find user and update password
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Hash the new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // Update user's password
+    user.password = hashedPassword;
+    await user.save();
+
+    // Clear verification code
+    verificationCodes.delete(email);
+
+    res.json({ message: 'Password reset successfully' });
+
+  } catch (error) {
+    console.error('Password reset error:', error);
+    res.status(500).json({ message: 'Error resetting password' });
+  }
+});
+
+// Added API endpoint to fetch evaluations for a specific student by ID
+router.get('/student/evaluations/:id', async (req, res) => {
+    try {
+        const evaluations = await EvaluationForm.find({ studentId: req.params.id });
+        res.json(evaluations);
+    } catch (error) {
+        console.error('Error fetching evaluations:', error);
+        res.status(500).json({ message: 'Error fetching evaluations' });
+    }
+});
+
+// Export the router
 module.exports = router;

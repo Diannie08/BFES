@@ -57,6 +57,11 @@ const AdminCalendar = () => {
   };
 
   const handleEventClick = (event) => {
+    if (!event || !event.evaluationForm) {
+      console.error('Invalid event data:', event);
+      return;
+    }
+
     console.log('Event:', event); // Debugging line to check the event structure
     const createdAt = new Date(event.evaluationForm.createdAt);
     const updatedAt = new Date(event.evaluationForm.updatedAt);
@@ -150,18 +155,20 @@ const AdminCalendar = () => {
         {evaluationResults.length > 0 ? (
           <List>
             {evaluationResults.map((event) => (
-              <React.Fragment key={event.id}>
-                <ListItem button onClick={() => handleEventClick(event)}>
-                  <ListItemIcon>
-                    <EventIcon color="primary" />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary={event.evaluationForm.title} 
-                    secondary={event.startTime + ' - ' + event.endTime} 
-                  />
-                </ListItem>
-                <Divider variant="inset" component="li" />
-              </React.Fragment>
+              event && event.evaluationForm ? (
+                <React.Fragment key={event.id}>
+                  <ListItem button onClick={() => handleEventClick(event)}>
+                    <ListItemIcon>
+                      <EventIcon color="primary" />
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary={event.evaluationForm.title} 
+                      secondary={event.startTime + ' - ' + event.endTime} 
+                    />
+                  </ListItem>
+                  <Divider variant="inset" component="li" />
+                </React.Fragment>
+              ) : null
             ))}
           </List>
         ) : (
@@ -184,10 +191,10 @@ const AdminCalendar = () => {
           width: '400px', 
           margin: 'auto', 
           mt: '100px', 
-          boxShadow: 3 // Add shadow for depth
+          boxShadow: 3 
         }}>
           <Typography variant="h6" sx={{ mb: 2 }}>Event Details</Typography>
-          {selectedEvent && (
+          {selectedEvent && selectedEvent.evaluationForm && (
             <>
               <Typography variant="body1" sx={{ fontWeight: 'bold' }}>Title:</Typography>
               <Typography variant="body2" sx={{ mb: 2 }}>{selectedEvent.evaluationForm.title}</Typography>
@@ -199,10 +206,16 @@ const AdminCalendar = () => {
               <Typography variant="body2" sx={{ mb: 2 }}>{selectedEvent.status}</Typography>
               
               <Typography variant="body1" sx={{ fontWeight: 'bold' }}>Ratings:</Typography>
-              <Typography variant="body2" sx={{ mb: 2 }}>{selectedEvent.ratings}</Typography>
+              <Typography variant="body2">{selectedEvent.ratings}</Typography>
             </>
           )}
-          <Button variant="contained" onClick={handleCloseModal} sx={{ mt: 2 }}>Close</Button>
+          <Button 
+            onClick={handleCloseModal}
+            variant="contained"
+            sx={{ mt: 2 }}
+          >
+            Close
+          </Button>
         </Box>
       </Modal>
     </Box>

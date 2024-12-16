@@ -7,14 +7,61 @@ const { verifyToken } = require('../middleware/auth');
 // Get all evaluation forms
 router.get('/', verifyToken, async (req, res) => {
   try {
-    console.log('Fetching all evaluation forms');
+    // Get all forms
     const evaluationForms = await EvaluationForm.find()
-      .populate('createdBy', 'name email')
+      .populate('createdBy', 'name')
       .sort({ createdAt: -1 });
-    console.log('Found forms:', evaluationForms);
+
+    // If user is a student, add completion status
+    if (req.user.role === 'student') {
+      // Get completed evaluations for this student
+      const completedResponses = await EvaluationResponse.distinct('evaluationForm', {
+        student: req.user.id
+      });
+
+      // Mark forms as completed if student has submitted responses
+      const formsWithStatus = evaluationForms.map(form => {
+        const formObj = form.toObject();
+        formObj.status = completedResponses.includes(form._id) ? 'Completed' : 'Pending';
+        return formObj;
+      });
+
+      return res.json(formsWithStatus);
+    }
+
+    // For admin, return forms with their original status
     res.json(evaluationForms);
   } catch (error) {
     console.error('Error fetching evaluation forms:', error);
+    res.status(500).json({ message: 'Error fetching evaluation forms', error: error.message });
+  }
+});
+
+// Get all evaluation forms for students
+router.get('/student/evaluations', verifyToken, async (req, res) => {
+  try {
+    console.log('Fetching all evaluation forms for students');
+    const evaluationForms = await EvaluationForm.find()
+      .populate('createdBy', 'name email')
+      .sort({ createdAt: -1 });
+
+    // Get completed evaluations for this student
+    const completedResponses = await EvaluationResponse.find({
+      student: req.user.id
+    }).distinct('evaluationForm');
+
+    // Return forms with their original status
+    const formsWithStatus = evaluationForms.map(form => {
+      const formObj = form.toObject();
+      // Keep the original status
+      return formObj;
+    });
+
+    console.log('Forms with status:', formsWithStatus);
+    res.json(formsWithStatus);
+  } catch (error) {
+    console.error('Error fetching evaluation forms for students:', error);
+    console.error('Error details:', error.message, error.stack);
     res.status(500).json({ message: 'Error fetching evaluation forms', error: error.message });
   }
 });
@@ -121,45 +168,98 @@ router.get('/results/:id', verifyToken, async (req, res) => {
   }
 });
 
-// Submit evaluation responses
+// Submit evaluation response
 router.post('/:id/submit', verifyToken, async (req, res) => {
   try {
-    const { responses } = req.body;
-    const evaluationId = req.params.id;
+    const { instructor, student, questionId, rating, answer, evaluationPeriod } = req.body;
+    console.log('Received submission data:', {
+      formId: req.params.id,
+      instructor,
+      student,
+      questionId,
+      rating,
+      answer,
+      evaluationPeriod
+    });
+
+    const evaluationForm = await EvaluationForm.findById(req.params.id);
     
-    // Validate evaluation form exists
-    const form = await EvaluationForm.findById(evaluationId);
-    if (!form) {
+    if (!evaluationForm) {
+      console.log('Evaluation form not found:', req.params.id);
       return res.status(404).json({ message: 'Evaluation form not found' });
     }
 
-    // Create responses
-    const savedResponses = await Promise.all(
-      responses.map(response => {
-        const evaluationResponse = new EvaluationResponse({
-          evaluationForm: evaluationId,
-          instructor: response.instructorId,
-          student: req.user._id,
-          questionId: response.questionId,
-          rating: response.rating,
-          answer: response.answer,
-          evaluationPeriod: {
-            startDate: form.evaluationPeriod.startDate,
-            endDate: form.evaluationPeriod.endDate
-          }
-        });
-        return evaluationResponse.save();
-      })
-    );
+    // Check if student has already submitted this specific question
+    const existingResponse = await EvaluationResponse.findOne({
+      evaluationForm: req.params.id,
+      student,
+      questionId
+    });
 
-    res.json(savedResponses);
+    if (existingResponse) {
+      console.log('Duplicate response found:', existingResponse);
+      return res.status(400).json({ message: 'You have already submitted an answer for this question' });
+    }
+
+    // Validate the data
+    if (!instructor || !student || !questionId) {
+      return res.status(400).json({ 
+        message: 'Missing required fields',
+        details: { instructor, student, questionId }
+      });
+    }
+
+    // Create new evaluation response
+    const response = new EvaluationResponse({
+      evaluationForm: req.params.id,
+      instructor,
+      student,
+      questionId,
+      rating: rating || undefined,
+      answer: answer || undefined,
+      evaluationPeriod: {
+        startDate: new Date(evaluationPeriod.startDate),
+        endDate: new Date(evaluationPeriod.endDate)
+      }
+    });
+
+    console.log('Creating new response:', {
+      evaluationForm: response.evaluationForm,
+      instructor: response.instructor,
+      student: response.student,
+      questionId: response.questionId,
+      rating: response.rating,
+      answer: response.answer,
+      evaluationPeriod: response.evaluationPeriod
+    });
+
+    const savedResponse = await response.save();
+    console.log('Response saved successfully:', savedResponse);
+
+    res.status(201).json({ 
+      message: 'Answer submitted successfully',
+      response: {
+        id: savedResponse._id,
+        createdAt: savedResponse.createdAt
+      }
+    });
   } catch (error) {
-    console.error('Error submitting evaluation:', error);
-    res.status(500).json({ message: 'Error submitting evaluation', error: error.message });
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code
+    });
+    console.error('Request body:', req.body);
+    res.status(500).json({ 
+      message: 'Error submitting evaluation', 
+      error: error.message,
+      details: error.stack 
+    });
   }
 });
 
-// Get a specific evaluation form by ID
+// Get a specific evaluation form
 router.get('/:id', verifyToken, async (req, res) => {
   try {
     const evaluationForm = await EvaluationForm.findById(req.params.id)
@@ -179,13 +279,20 @@ router.get('/:id', verifyToken, async (req, res) => {
 // Create a new evaluation form
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { title, description, targetAudience, questions } = req.body;
+    const { title, description, targetAudience, questions, studentId, type, date } = req.body;
+    
+    if (!studentId || !type || !date) {
+      return res.status(400).json({ message: 'studentId, type, and date are required fields' });
+    }
     
     const evaluationForm = new EvaluationForm({
       title,
       description,
       targetAudience,
       questions,
+      studentId,
+      type,
+      date,
       createdBy: req.user._id,
     });
 
@@ -242,6 +349,20 @@ router.delete('/:id', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Error deleting evaluation form:', error);
     res.status(500).json({ message: 'Error deleting evaluation form', error: error.message });
+  }
+});
+
+// Get all evaluation forms for admin
+router.get('/admin/forms', verifyToken, async (req, res) => {
+  try {
+    const evaluationForms = await EvaluationForm.find()
+      .populate('createdBy', 'name')
+      .sort({ createdAt: -1 });
+    
+    res.json(evaluationForms);
+  } catch (error) {
+    console.error('Error fetching evaluation forms:', error);
+    res.status(500).json({ message: 'Error fetching evaluation forms', error: error.message });
   }
 });
 

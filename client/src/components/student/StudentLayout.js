@@ -14,14 +14,13 @@ import {
 import { 
   Person as ProfileIcon, 
   Assignment as EvaluationIcon, 
-  CalendarToday as CalendarIcon, 
   Logout as LogoutIcon,
   Menu as MenuIcon 
 } from '@mui/icons-material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-const drawerWidth = 240;
+const drawerWidth = 280;
 
 const StudentLayout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -45,7 +44,7 @@ const StudentLayout = () => {
 
   const menuItems = [
     { 
-      text: 'Profile', 
+      text: 'Student Profile', 
       icon: <ProfileIcon />, 
       path: '/student/profile' 
     },
@@ -55,11 +54,6 @@ const StudentLayout = () => {
       path: '/student/evaluation' 
     },
     { 
-      text: 'Calendar', 
-      icon: <CalendarIcon />, 
-      path: '/student/calendar' 
-    },
-    { 
       text: 'Logout', 
       icon: <LogoutIcon />, 
       onClick: handleLogout 
@@ -67,19 +61,87 @@ const StudentLayout = () => {
   ];
 
   const drawer = (
-    <List>
-      {menuItems.map((item, index) => (
-        <ListItem 
-          key={item.text}
-          button 
-          onClick={item.onClick || (() => handleNavigation(item.path))}
-          selected={location.pathname === item.path}
+    <Box>
+      {/* Logo Section */}
+      <Box sx={{ 
+        p: 2,
+        borderBottom: '1px solid rgba(0, 0, 0, 0.12)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2
+      }}>
+        <img 
+          src="/images/buksu-logo.png" 
+          alt="BukSU Logo" 
+          style={{ 
+            width: 40, 
+            height: 40 
+          }} 
+        />
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: 600,
+            color: '#1a237e',
+            fontSize: '1rem',
+            lineHeight: 1.2
+          }}
         >
-          <ListItemIcon>{item.icon}</ListItemIcon>
-          <ListItemText primary={item.text} />
-        </ListItem>
-      ))}
-    </List>
+          STUDENT
+          <br />
+          EVALUATION
+          <br />
+          SYSTEM
+        </Typography>
+      </Box>
+
+      {/* Navigation List */}
+      <List sx={{ 
+        mt: 2,
+        '& .MuiListItem-root': {
+          mb: 1,
+          mx: 1,
+          borderRadius: 1,
+          '&:hover': {
+            bgcolor: 'rgba(25, 118, 210, 0.08)',
+          },
+          '&.Mui-selected': {
+            bgcolor: 'rgba(25, 118, 210, 0.12)',
+            '&:hover': {
+              bgcolor: 'rgba(25, 118, 210, 0.12)',
+            }
+          }
+        }
+      }}>
+        {menuItems.map((item) => (
+          <ListItem
+            key={item.text}
+            button
+            onClick={item.onClick || (() => handleNavigation(item.path))}
+            selected={location.pathname === item.path}
+            sx={{ 
+              py: 1,
+              color: 'inherit',
+              textDecoration: 'none'
+            }}
+          >
+            <ListItemIcon sx={{ 
+              minWidth: 40,
+              color: location.pathname === item.path ? '#1976d2' : 'text.secondary'
+            }}>
+              {item.icon}
+            </ListItemIcon>
+            <ListItemText 
+              primary={item.text}
+              primaryTypographyProps={{
+                fontSize: '0.95rem',
+                fontWeight: location.pathname === item.path ? 600 : 400
+              }}
+            />
+          </ListItem>
+        ))}
+      </List>
+    </Box>
   );
 
   return (
@@ -111,7 +173,10 @@ const StudentLayout = () => {
       {/* Sidebar */}
       <Box
         component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+        sx={{ 
+          width: { sm: drawerWidth }, 
+          flexShrink: { sm: 0 },
+        }}
         aria-label="student navigation"
       >
         {/* Mobile Drawer */}
@@ -124,7 +189,13 @@ const StudentLayout = () => {
           }}
           sx={{
             display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth,
+              bgcolor: '#ffffff',
+              borderRight: '1px solid rgba(0, 0, 0, 0.12)',
+              boxShadow: '4px 0 10px rgba(0,0,0,0.1)'
+            },
           }}
         >
           {drawer}
@@ -135,7 +206,13 @@ const StudentLayout = () => {
           variant="permanent"
           sx={{
             display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth,
+              bgcolor: '#ffffff',
+              borderRight: '1px solid rgba(0, 0, 0, 0.12)',
+              boxShadow: '4px 0 10px rgba(0,0,0,0.1)'
+            },
           }}
           open
         >

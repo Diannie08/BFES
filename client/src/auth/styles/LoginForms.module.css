@@ -226,9 +226,17 @@
 }
 
 .recaptcha {
-  margin: 24px 0;
+  margin: 20px 0;
   display: flex;
   justify-content: center;
+  align-items: center;
+}
+
+.recaptcha > div {
+  transform: scale(1);
+  -webkit-transform: scale(1);
+  transform-origin: 0 0;
+  -webkit-transform-origin: 0 0;
 }
 
 .title {

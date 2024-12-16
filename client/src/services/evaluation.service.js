@@ -59,10 +59,11 @@ class EvaluationService {
     }
   }
 
-  async getAllForms() {
+  async getAllForms(isAdmin = false) {
     try {
       console.log('Fetching all forms...');
-      const response = await axiosInstance.get('/evaluation');
+      const url = isAdmin ? '/evaluation/admin/forms' : '/evaluation';
+      const response = await axiosInstance.get(url);
       console.log('Forms fetched:', response.data);
       return response.data;
     } catch (error) {
@@ -125,7 +126,8 @@ class EvaluationService {
   async getEvaluationResultsByDate(date) {
     try {
       const response = await axiosInstance.get(`/evaluation/results/date/${date}`);
-      return response.data;
+      // Filter out any results without evaluationForm
+      return response.data.filter(result => result && result.evaluationForm);
     } catch (error) {
       console.error('Error fetching evaluation results by date:', error.response?.data || error.message);
       throw error;

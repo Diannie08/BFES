@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from './Inputs';
 import { GoogleButton } from './GoogleButton';
@@ -22,6 +22,8 @@ export function LoginForm() {
     password: ''
   });
 
+  const recaptchaRef = useRef(null);
+
   const handleInputChange = (e) => {
     const { id, value } = e.target;
     setFormData(prev => ({
@@ -31,38 +33,69 @@ export function LoginForm() {
     if (error) setError('');
   };
 
+  useEffect(() => {
+    // Load reCAPTCHA script
+    const script = document.createElement('script');
+    script.src = 'https://www.google.com/recaptcha/api.js';
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      console.log('Login Attempt:', formData.email);
-      const userData = await login({
+      let recaptchaValue = '';
+      if (window.grecaptcha && window.grecaptcha.getResponse) {
+        recaptchaValue = window.grecaptcha.getResponse();
+        if (!recaptchaValue) {
+          setError('Please complete the reCAPTCHA');
+          setLoading(false);
+          return;
+        }
+      }
+
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/login`, {
         email: formData.email,
-        password: formData.password
+        password: formData.password,
+        recaptchaResponse: recaptchaValue
       });
 
-      console.log('User Data:', userData);
+      if (response.data.token) {
+        console.log('Login Attempt:', formData.email);
+        const userData = await login({
+          email: formData.email,
+          password: formData.password
+        });
 
-      // Role-based routing
-      switch(userData.role) {
-        case 'admin':
-        case 'faculty':
-          console.log('Navigating to /admin/profile for role:', userData.role);
-          navigate('/admin/profile');
-          break;
-        case 'student':
-          console.log('Navigating to /student/profile');
-          navigate('/student/profile');
-          break;
-        default:
-          console.warn('Unrecognized role, navigating to login');
-          navigate('/login');
+        console.log('User Data:', userData);
+
+        // Role-based routing
+        switch(userData.role) {
+          case 'admin':
+          case 'faculty':
+            console.log('Navigating to /admin/profile for role:', userData.role);
+            navigate('/admin/profile');
+            break;
+          case 'student':
+            console.log('Navigating to /student/profile');
+            navigate('/student/profile');
+            break;
+          default:
+            console.warn('Unrecognized role, navigating to login');
+            navigate('/login');
+        }
       }
     } catch (err) {
       console.error('Login Error:', err);
-      setError(err.response?.data?.message || 'Invalid email or password');
+      setError(err.response?.data?.message || 'Failed to login. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -129,7 +162,13 @@ export function LoginForm() {
       </div>
 
       <div className={styles.recaptcha}>
-        <div className="g-recaptcha" data-sitekey="YOUR_RECAPTCHA_SITE_KEY"></div>
+        <div 
+          ref={recaptchaRef}
+          className="g-recaptcha" 
+          data-sitekey="6LeBAZ0qAAAAABKl_d_jSXQbj0mp18m9aUsRm1tb"
+          data-theme="light"
+          data-size="normal"
+        ></div>
       </div>
 
       <button 

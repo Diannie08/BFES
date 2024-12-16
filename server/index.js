@@ -5,21 +5,31 @@ const connectDB = require('./config/db.config');
 const authRoutes = require('./routes/auth.routes');
 const testRoutes = require('./routes/test.routes');
 const evaluationRoutes = require('./routes/evaluation.routes'); // Add evaluation routes
+const studentRoutes = require('./routes/StudentRoutes'); // Ensure this line is added
+const exportRoutes = require('./routes/export.routes');
 
 const app = express();
 
 // CORS configuration
+app.use(cors({
+  origin: 'http://localhost:3000',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
+
+// Add headers middleware
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
   res.header('Access-Control-Allow-Credentials', 'true');
-  
-  // Handle OPTIONS method
   if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
+    res.sendStatus(204);
+  } else {
+    next();
   }
-  next();
 });
 
 // Parse JSON bodies
@@ -37,7 +47,9 @@ connectDB();
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/test', testRoutes);
-app.use('/api/evaluation', evaluationRoutes); // Register evaluation routes
+app.use('/api/evaluation', evaluationRoutes); 
+app.use('/api/student', studentRoutes); 
+app.use('/api/export', exportRoutes);
 
 app.get('/api', (req, res) => {
     res.json({ message: "Welcome to IESv2 Server!" });

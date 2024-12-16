@@ -4,7 +4,7 @@ import StudentLayout from '../components/student/StudentLayout';
 import StudentDashboard from '../components/student/StudentDashboard';
 import StudentProfile from '../components/student/StudentProfile';
 import StudentEvaluation from '../components/student/StudentEvaluation';
-import StudentCalendar from '../components/student/StudentCalendar';
+import AnswerEvaluation from '../components/student/AnswerEvaluation';
 
 const StudentRoutes = () => {
   return (
@@ -14,7 +14,7 @@ const StudentRoutes = () => {
         <Route path="/" element={<StudentDashboard />} />
         <Route path="/dashboard" element={<StudentDashboard />} />
         <Route path="/evaluation" element={<StudentEvaluation />} />
-        <Route path="/calendar" element={<StudentCalendar />} />
+        <Route path="/evaluation/:formId/answer" element={<AnswerEvaluation />} />
       </Route>
     </Routes>
   );

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import { 
   Dialog, 
@@ -13,46 +14,35 @@ import {
   Typography 
 } from '@mui/material';
 import styles from '../styles/LoginForms.module.css';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 export function GoogleButton() {
   const [openRoleDialog, setOpenRoleDialog] = useState(false);
-  const [selectedRole, setSelectedRole] = useState('');
   const [googleUserData, setGoogleUserData] = useState(null);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const handleRoleSubmit = async () => {
-    if (!selectedRole) {
-      alert('Please select a role');
-      return;
-    }
-
+  const handleRoleSubmit = async (role) => {
     try {
       console.log('Sending registration data:', {
         ...googleUserData,
-        role: selectedRole
+        role: role
       });
 
-      // More explicit and verbose fetch configuration
       const fetchOptions = {
         method: 'POST',
-        mode: 'cors', // Explicitly set CORS mode
-        cache: 'no-cache',
-        credentials: 'include', // Include credentials if needed
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'X-Debug-Request': 'GoogleRegister',
-          'Accept': 'application/json'
         },
         body: JSON.stringify({
           ...googleUserData,
-          role: selectedRole
+          role: role
         }),
       };
 
       console.log('Fetch Options:', fetchOptions);
 
-      // Send Google user data along with selected role to backend
       const response = await fetch('http://localhost:5000/api/auth/google-register', fetchOptions);
 
       console.log('Full Response:', {
@@ -62,20 +52,16 @@ export function GoogleButton() {
         url: response.url
       });
 
-      // Clone the response to allow multiple reads
       const responseClone = response.clone();
 
-      // Try to parse the response
       let responseBody;
       try {
         if (response.ok) {
           responseBody = await response.json();
         } else {
-          // For non-OK responses, try to get text
           const errorText = await responseClone.text();
           console.error('Error Response Text:', errorText);
           
-          // Try to parse as JSON if possible
           try {
             responseBody = JSON.parse(errorText);
           } catch {
@@ -87,7 +73,6 @@ export function GoogleButton() {
         throw parseError;
       }
 
-      // Check for error in response
       if (!response.ok) {
         throw new Error(
           responseBody?.message || 
@@ -96,30 +81,28 @@ export function GoogleButton() {
         );
       }
 
-      // Destructure successful response
       const { token, user } = responseBody;
       
-      // Store token and user info
+      console.log('Registration successful, received:', { token, user });
+      
+      // Store token and user info directly
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-
-      // Close dialog and navigate based on role
+      
+      // Close the dialog first
       setOpenRoleDialog(false);
       
       // Navigate based on role
-      switch (user.role) {
-        case 'admin':
-          navigate('/admin/profile');
-          break;
-        case 'faculty':
-          navigate('/faculty');
-          break;
-        case 'student':
-          navigate('/student');
-          break;
-        default:
-          navigate('/');
+      if (user.role === 'student') {
+        console.log('Redirecting to student profile...');
+        navigate('/student/profile', { replace: true });
+      } else {
+        console.log('Redirecting to admin profile...');
+        navigate('/admin/profile', { replace: true });
       }
+
+      // Force page reload to update auth context
+      window.location.reload();
     } catch (error) {
       console.error('=== FULL REGISTRATION ERROR ===');
       console.error('Error Object:', error);
@@ -127,15 +110,13 @@ export function GoogleButton() {
       console.error('Error Message:', error.message);
       console.error('Error Stack:', error.stack);
       
-      // More detailed error alert
       alert(`Registration Error: ${error.message}`);
     }
   };
 
-  const login = useGoogleLogin({
+  const loginGoogle = useGoogleLogin({
     onSuccess: async (response) => {
       try {
-        // Fetch user info from Google
         const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: {
             Authorization: `Bearer ${response.access_token}`,
@@ -148,7 +129,6 @@ export function GoogleButton() {
 
         const userInfo = await userInfoResponse.json();
         
-        // Open role selection dialog
         setGoogleUserData({
           email: userInfo.email,
           firstName: userInfo.given_name,
@@ -165,7 +145,6 @@ export function GoogleButton() {
     }
   });
 
-  // Role Selection Dialog Component
   const RoleSelectionDialog = () => (
     <Dialog 
       open={openRoleDialog} 
@@ -204,8 +183,7 @@ export function GoogleButton() {
           }}>
             <Button
               onClick={() => {
-                setSelectedRole('student');
-                handleRoleSubmit();
+                handleRoleSubmit('student');
               }}
               sx={{
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -222,8 +200,7 @@ export function GoogleButton() {
             </Button>
             <Button
               onClick={() => {
-                setSelectedRole('faculty');
-                handleRoleSubmit();
+                handleRoleSubmit('faculty');
               }}
               sx={{
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -249,7 +226,7 @@ export function GoogleButton() {
       <button 
         type="button" 
         className={styles.googleButton}
-        onClick={() => login()}
+        onClick={() => loginGoogle()}
       >
         <img
           src="https://authjs.dev/img/providers/google.svg"

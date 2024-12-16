@@ -34,6 +34,20 @@ const evaluationFormSchema = new mongoose.Schema({
     enum: ['draft', 'active', 'inactive'],
     default: 'draft',
   },
+  date: {
+    type: Date,
+    required: false,
+  },
+  type: {
+    type: String,
+    enum: ['evaluation', 'exam', 'assignment'],
+    required: false,
+  },
+  studentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: false,
+  },
   questions: [questionSchema],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,

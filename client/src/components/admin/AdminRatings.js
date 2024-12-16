@@ -57,30 +57,40 @@ const AdminRatings = () => {
   };
 
   const exportToGoogleSheets = async () => {
-    const sheetId = 'YOUR_SHEET_ID'; // Replace with your Google Sheet ID
-    const apiKey = 'YOUR_API_KEY'; // Replace with your Google API key
-
-    const data = results.map(result => ({
-      instructor: result.instructor.name,
-      evaluationForm: result.evaluationForm.title,
-      averageRating: calculateAverageRating(result.responses),
-      evaluationPeriod: `${result.evaluationPeriod.startDate.substring(0, 10)} to ${result.evaluationPeriod.endDate.substring(0, 10)}`
-    }));
-
     try {
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1!A1:append?valueInputOption=RAW&key=${apiKey}`, {
+      setLoading(true);
+      const data = results.map(result => ({
+        instructor: result.instructor.name,
+        evaluationForm: result.evaluationForm.title,
+        averageRating: calculateAverageRating(result.responses),
+        evaluationPeriod: `${result.evaluationPeriod.startDate.substring(0, 10)} to ${result.evaluationPeriod.endDate.substring(0, 10)}`,
+        responses: result.responses.map(response => ({
+          question: response.questionText,
+          rating: response.rating || 'N/A',
+          comment: response.comment || 'N/A'
+        }))
+      }));
+
+      // Send data to backend
+      const response = await fetch('http://localhost:5000/api/export/google-sheets', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          values: data.map(item => [item.instructor, item.evaluationForm, item.averageRating, item.evaluationPeriod])
-        })
+        body: JSON.stringify({ data })
       });
-      alert('Data exported successfully!');
+
+      if (!response.ok) {
+        throw new Error('Failed to export data');
+      }
+
+      const result = await response.json();
+      alert('Data exported successfully! Sheet URL: ' + result.spreadsheetUrl);
     } catch (error) {
       console.error('Error exporting data:', error);
-      alert('Failed to export data.');
+      alert('Failed to export data: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -182,28 +192,37 @@ const AdminRatings = () => {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-        <CircularProgress />
-      </Box>
+      <Container>
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+          <CircularProgress />
+        </Box>
+      </Container>
     );
   }
 
   if (error) {
     return (
-      <Box m={2}>
+      <Container>
         <Alert severity="error">{error}</Alert>
-      </Box>
+      </Container>
     );
   }
 
   return (
     <Container maxWidth="lg" sx={{ bgcolor: '#fff', borderRadius: 2, boxShadow: 3, p: 4, mt: 4 }}>
-      <Typography variant="h4" gutterBottom sx={{ mt: 2, mb: 2, color: '#333', fontWeight: 'bold', fontSize: 24 }}>
-        Instructor Ratings
-      </Typography>
-      <Button variant="contained" color="primary" onClick={exportToGoogleSheets} sx={{ mb: 2, bgcolor: '#2196f3', '&:hover': { bgcolor: '#1a237e' }, py: 1, px: 3, fontSize: 16 }}>
-        Export to Google Sheets
-      </Button>
+      <Box mb={3} display="flex" justifyContent="space-between" alignItems="center">
+        <Typography variant="h4" gutterBottom sx={{ mt: 2, mb: 2, color: '#333', fontWeight: 'bold', fontSize: 24 }}>
+          Instructor Ratings
+        </Typography>
+        <Button 
+          variant="contained" 
+          color="primary" 
+          onClick={exportToGoogleSheets}
+          disabled={loading || results.length === 0}
+        >
+          {loading ? 'Exporting...' : 'Export to Google Sheets'}
+        </Button>
+      </Box>
       <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: 2, mt: 2 }}>
         <Table sx={{ minWidth: 650 }}>
           <TableHead>

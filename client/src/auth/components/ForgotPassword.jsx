@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import styles from '../styles/LoginForms.module.css';
 import axios from 'axios';
+import { CircularProgress } from '@mui/material';
 
 export function ForgotPassword({ onBack }) {
   const [step, setStep] = useState(1);
@@ -13,6 +14,7 @@ export function ForgotPassword({ onBack }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const handleInputChange = (e) => {
     const { id, value } = e.target;
@@ -26,38 +28,49 @@ export function ForgotPassword({ onBack }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
     setLoading(true);
 
     try {
       if (step === 1) {
-        await axios.post('http://localhost:5000/api/auth/forgot-password', {
+        // Request verification code
+        await axios.post(`${process.env.REACT_APP_API_URL}/auth/forgot-password`, {
           email: formData.email
         });
+        setSuccessMessage('Verification code sent to your email');
         setStep(2);
       } else if (step === 2) {
-        await axios.post('http://localhost:5000/api/auth/verify-code', {
+        // Verify the code
+        await axios.post(`${process.env.REACT_APP_API_URL}/auth/verify-code`, {
           email: formData.email,
           code: formData.verificationCode
         });
+        setSuccessMessage('Code verified successfully');
         setStep(3);
       } else if (step === 3) {
+        // Validate passwords
         if (formData.newPassword !== formData.confirmPassword) {
           setError('Passwords do not match');
+          setLoading(false);
           return;
         }
         if (formData.newPassword.length < 6) {
           setError('Password must be at least 6 characters long');
+          setLoading(false);
           return;
         }
-        await axios.post('http://localhost:5000/api/auth/reset-password', {
+
+        // Reset password
+        await axios.post(`${process.env.REACT_APP_API_URL}/auth/reset-password`, {
           email: formData.email,
-          code: formData.verificationCode,
           newPassword: formData.newPassword
         });
-        onBack(); // Return to login after success
+        setSuccessMessage('Password reset successfully');
+        setTimeout(() => onBack(), 2000); // Go back to login after 2 seconds
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'An error occurred. Please try again.');
+      console.error('Error:', error);
+      setError(error.response?.data?.message || 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -74,6 +87,7 @@ export function ForgotPassword({ onBack }) {
                 Enter your email address and we'll send you a verification code.
               </p>
               {error && <div className={styles.error}>{error}</div>}
+              {successMessage && <div className={styles.success}>{successMessage}</div>}
               
               <div className={styles.inputGroup}>
                 <label className={styles.inputLabel}>Email</label>
@@ -94,10 +108,14 @@ export function ForgotPassword({ onBack }) {
                 className={styles.submitButton}
                 disabled={loading}
               >
-                {loading ? 'Sending...' : 'Send Code'}
+                {loading ? <CircularProgress size={20} /> : 'Send Code'}
               </button>
 
-              <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }} className={styles.loginLink}>
+              <a 
+                href="#" 
+                onClick={(e) => { e.preventDefault(); onBack(); }} 
+                className={styles.loginLink}
+              >
                 Back to Login
               </a>
             </form>
@@ -114,6 +132,7 @@ export function ForgotPassword({ onBack }) {
                 Please enter it below.
               </p>
               {error && <div className={styles.error}>{error}</div>}
+              {successMessage && <div className={styles.success}>{successMessage}</div>}
               
               <div className={styles.inputGroup}>
                 <label className={styles.inputLabel}>Verification Code</label>
@@ -134,10 +153,14 @@ export function ForgotPassword({ onBack }) {
                 className={styles.submitButton}
                 disabled={loading}
               >
-                {loading ? 'Verifying...' : 'Verify Code'}
+                {loading ? <CircularProgress size={20} /> : 'Verify Code'}
               </button>
 
-              <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }} className={styles.loginLink}>
+              <a 
+                href="#" 
+                onClick={(e) => { e.preventDefault(); onBack(); }} 
+                className={styles.loginLink}
+              >
                 Back to Login
               </a>
             </form>
@@ -153,6 +176,7 @@ export function ForgotPassword({ onBack }) {
                 Please enter your new password.
               </p>
               {error && <div className={styles.error}>{error}</div>}
+              {successMessage && <div className={styles.success}>{successMessage}</div>}
               
               <div className={styles.inputGroup}>
                 <label className={styles.inputLabel}>New Password</label>
@@ -199,19 +223,23 @@ export function ForgotPassword({ onBack }) {
                 className={styles.submitButton}
                 disabled={loading}
               >
-                {loading ? 'Resetting...' : 'Reset Password'}
+                {loading ? <CircularProgress size={20} /> : 'Reset Password'}
               </button>
 
-              <a href="#" onClick={(e) => { e.preventDefault(); onBack(); }} className={styles.loginLink}>
+              <a 
+                href="#" 
+                onClick={(e) => { e.preventDefault(); onBack(); }} 
+                className={styles.loginLink}
+              >
                 Back to Login
               </a>
             </form>
           </div>
         );
+      default:
+        return null;
     }
   };
 
   return renderStep();
 }
-
-export default ForgotPassword;

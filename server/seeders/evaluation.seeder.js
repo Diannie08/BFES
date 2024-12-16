@@ -23,36 +23,45 @@ const seedEvaluations = async () => {
 
     console.log(`Found ${instructors.length} instructors and ${students.length} students`);
 
-    // Get or create evaluation forms
+    // Create evaluation forms if none exist
     let evaluationForms = await EvaluationForm.find({});
 
     if (evaluationForms.length === 0 && admin) {
-      const sampleForm = {
-        title: 'Teaching Effectiveness Survey',
-        description: 'Evaluate the teaching methods and effectiveness of the instructor',
-        targetAudience: 'Student',
-        status: 'Active',
-        questions: [
-          {
-            text: 'How well did the instructor explain complex concepts?',
-            type: 'rating'
-          },
-          {
-            text: 'How engaging were the class discussions?',
-            type: 'rating'
-          },
-          {
-            text: 'What suggestions do you have for improvement?',
-            type: 'text'
-          }
-        ],
-        createdBy: admin._id
-      };
+      const sampleForms = [
+        {
+          title: 'Midterm Evaluation',
+          description: 'Evaluate the midterm performance of the student.',
+          targetAudience: 'student',
+          status: 'active',
+          questions: [
+            { text: 'How well did you understand the course material?', type: 'rating' },
+            { text: 'What areas do you feel need improvement?', type: 'text' }
+          ],
+          createdBy: admin._id,
+          date: new Date('2024-01-15'),
+          type: 'Evaluation',
+          studentId: students[0]._id // Assign to the first student for demonstration
+        },
+        {
+          title: 'Final Exam Feedback',
+          description: 'Provide feedback on the final exam.',
+          targetAudience: 'student',
+          status: 'active',
+          questions: [
+            { text: 'Was the exam fair and reflective of the course content?', type: 'rating' },
+            { text: 'Please provide any additional comments.', type: 'text' }
+          ],
+          createdBy: admin._id,
+          date: new Date('2024-02-20'),
+          type: 'Exam',
+          studentId: students[1]._id // Assign to the second student for demonstration
+        }
+      ];
 
-      const form = new EvaluationForm(sampleForm);
-      await form.save();
-      evaluationForms = [form];
-      console.log('Created sample evaluation form');
+      await EvaluationForm.insertMany(sampleForms);
+      console.log('Sample evaluation forms created successfully');
+    } else {
+      console.log('Evaluation forms already exist, skipping creation.');
     }
 
     console.log(`Working with ${evaluationForms.length} evaluation forms`);
@@ -71,17 +80,45 @@ const seedEvaluations = async () => {
     for (const form of evaluationForms) {
       console.log(`Creating responses for form: ${form.title}`);
       
-      for (const instructor of instructors) {
-        console.log(`- Creating responses for instructor: ${instructor.name}`);
-        
+      if (form.targetAudience === 'Student') {
+        for (const instructor of instructors) {
+          console.log(`- Creating responses for instructor: ${instructor.name}`);
+          
+          for (const student of students) {
+            console.log(`  - Creating response from student: ${student.name}`);
+            
+            // Create a response for each question
+            form.questions.forEach(question => {
+              const response = {
+                evaluationForm: form._id,
+                instructor: instructor._id,
+                student: student._id,
+                questionId: question._id,
+                evaluationPeriod: {
+                  startDate: new Date('2024-01-01'),
+                  endDate: new Date('2024-12-31')
+                }
+              };
+
+              // Add appropriate response based on question type
+              if (question.type === 'rating') {
+                response.rating = Math.floor(Math.random() * 4) + 2; // Random rating between 2-5
+              } else if (question.type === 'text') {
+                response.answer = textAnswers[Math.floor(Math.random() * textAnswers.length)];
+              }
+
+              sampleResponses.push(response);
+            });
+          }
+        }
+      } else if (form.targetAudience === 'student') {
         for (const student of students) {
-          console.log(`  - Creating response from student: ${student.name}`);
+          console.log(`- Creating response from student: ${student.name}`);
           
           // Create a response for each question
           form.questions.forEach(question => {
             const response = {
               evaluationForm: form._id,
-              instructor: instructor._id,
               student: student._id,
               questionId: question._id,
               evaluationPeriod: {

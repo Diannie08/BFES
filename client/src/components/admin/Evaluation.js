@@ -100,9 +100,9 @@ const Evaluation = () => {
   const handleStatusChange = async (form) => {
     try {
       const updatedForm = { ...form };
-      updatedForm.status = form.status === 'Active' ? 'Draft' : 'Active';
+      updatedForm.status = form.status === 'active' ? 'draft' : 'active';
       await evaluationService.updateForm(form._id, updatedForm);
-      showSnackbar(`Form ${updatedForm.status === 'Active' ? 'activated' : 'deactivated'} successfully`, 'success');
+      showSnackbar(`Form ${updatedForm.status === 'active' ? 'activated' : 'deactivated'} successfully`, 'success');
       fetchForms();
     } catch (error) {
       console.error('Error updating form status:', error);
@@ -150,13 +150,24 @@ const Evaluation = () => {
   };
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'Active':
+    switch (status.toLowerCase()) {
+      case 'active':
         return 'success';
-      case 'Draft':
+      case 'draft':
         return 'warning';
       default:
         return 'default';
+    }
+  };
+
+  const getStatusDisplay = (status) => {
+    switch (status.toLowerCase()) {
+      case 'active':
+        return 'Active';
+      case 'draft':
+        return 'Draft';
+      default:
+        return status;
     }
   };
 
@@ -354,10 +365,10 @@ const Evaluation = () => {
                     }}
                   />
                   <Chip
-                    label={form.status}
+                    label={getStatusDisplay(form.status)}
                     size="small"
                     color={getStatusColor(form.status)}
-                    icon={form.status === 'Active' ? <ActiveIcon /> : <InactiveIcon />}
+                    icon={form.status.toLowerCase() === 'active' ? <ActiveIcon /> : <InactiveIcon />}
                   />
                 </Box>
 
@@ -367,17 +378,17 @@ const Evaluation = () => {
                   gap={1}
                   sx={{ mt: 'auto' }}
                 >
-                  <Tooltip title={form.status === 'Active' ? 'Deactivate' : 'Activate'}>
+                  <Tooltip title={form.status.toLowerCase() === 'active' ? 'Deactivate' : 'Activate'}>
                     <IconButton
                       size="small"
                       onClick={() => handleStatusChange(form)}
-                      color={form.status === 'Active' ? 'error' : 'success'}
+                      color={form.status.toLowerCase() === 'active' ? 'error' : 'success'}
                       sx={{ 
                         backgroundColor: 'rgba(0, 0, 0, 0.04)',
                         '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.08)' }
                       }}
                     >
-                      {form.status === 'Active' ? <InactiveIcon /> : <ActiveIcon />}
+                      {form.status.toLowerCase() === 'active' ? <InactiveIcon /> : <ActiveIcon />}
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Edit Form">

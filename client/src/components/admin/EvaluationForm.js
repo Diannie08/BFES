@@ -33,6 +33,8 @@ const EvaluationForm = () => {
     title: '',
     description: '',
     targetAudience: 'student',
+    type: '',
+    date: '',
     questions: [
       {
         text: '',
@@ -102,11 +104,20 @@ const EvaluationForm = () => {
     setLoading(true);
 
     try {
+      const userRole = 'student'; // Replace with actual user role logic
+      const actualStudentId = '60d5ec49e5f8d95e4c8b4567'; // Replace with actual logic to get the student ID
+      const data = { 
+        ...formData, 
+        studentId: userRole === 'student' ? actualStudentId : null, 
+        type: formData.type.toLowerCase(),
+        status: 'active' // Set status to active by default
+      };
+
       if (id) {
-        await evaluationService.updateForm(id, formData);
+        await evaluationService.updateForm(id, data);
         setSuccess('Form updated successfully!');
       } else {
-        await evaluationService.createForm(formData);
+        await evaluationService.createForm(data);
         setSuccess('Form created successfully!');
       }
       setTimeout(() => navigate('/admin/evaluation'), 2000);
@@ -172,6 +183,33 @@ const EvaluationForm = () => {
                   <MenuItem value="self">Self</MenuItem>
                 </Select>
               </FormControl>
+            </Grid>
+            
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Type</InputLabel>
+                <Select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  required
+                >
+                  <MenuItem value="evaluation">Evaluation</MenuItem>
+                  <MenuItem value="exam">Exam</MenuItem>
+                  <MenuItem value="assignment">Assignment</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Date"
+                type="date"
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                required
+                InputLabelProps={{ shrink: true }}
+              />
             </Grid>
             
             <Grid item xs={12}>
