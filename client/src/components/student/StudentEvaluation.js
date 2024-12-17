@@ -88,8 +88,14 @@ const StudentEvaluation = () => {
         getAuthHeaders()
       );
       
-      console.log('Fetched evaluation forms:', response.data);
-      setEvaluationForms(response.data);
+      // Map the forms and ensure status is properly set
+      const processedForms = response.data.map(form => ({
+        ...form,
+        status: form.status || 'Active' // Default to Active if status is not set
+      }));
+      
+      console.log('Fetched evaluation forms:', processedForms);
+      setEvaluationForms(processedForms);
       setError(null);
     } catch (error) {
       console.error('Error fetching evaluation forms:', error);
@@ -139,6 +145,8 @@ const StudentEvaluation = () => {
 
   const getStatusChip = (status) => {
     const statusLower = status?.toLowerCase() || '';
+    console.log('Status from DB:', status); // Debug log
+    
     if (statusLower === 'active') {
       return <Chip label="Active" color="primary" size="small" />;
     }
@@ -148,7 +156,7 @@ const StudentEvaluation = () => {
     if (statusLower === 'completed') {
       return <Chip label="Completed" color="success" size="small" />;
     }
-    return <Chip label={status || 'Unknown'} color="default" size="small" />;
+    return <Chip label={status || 'Pending'} color="default" size="small" />;
   };
 
   const handleStartEvaluation = (formId) => {
@@ -260,7 +268,7 @@ const StudentEvaluation = () => {
                           />
                         </TableCell>
                         <TableCell>
-                          {getStatusChip(form.status)}
+                          {getStatusChip(form.status || 'Active')}
                         </TableCell>
                         <TableCell>
                           {form.deadline ? new Date(form.deadline).toLocaleDateString() : 'No deadline'}
@@ -271,10 +279,10 @@ const StudentEvaluation = () => {
                             color="primary"
                             size="small"
                             onClick={() => handleStartEvaluation(form._id)}
-                            disabled={form.status === 'Completed'}
+                            disabled={form.status?.toLowerCase() === 'completed'}
                             sx={{ borderRadius: '8px' }}
                           >
-                            {form.status === 'Completed' ? 'Completed' : 'Start'}
+                            {form.status?.toLowerCase() === 'completed' ? 'Completed' : 'Start'}
                           </Button>
                         </TableCell>
                       </TableRow>
