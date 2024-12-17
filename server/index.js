@@ -7,6 +7,7 @@ const testRoutes = require('./routes/test.routes');
 const evaluationRoutes = require('./routes/evaluation.routes'); // Add evaluation routes
 const studentRoutes = require('./routes/StudentRoutes'); // Ensure this line is added
 const exportRoutes = require('./routes/export.routes');
+const calendarRoutes = require('./routes/calendar.routes');
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use('/api/test', testRoutes);
 app.use('/api/evaluation', evaluationRoutes); 
 app.use('/api/student', studentRoutes); 
 app.use('/api/export', exportRoutes);
+app.use('/api/calendar', calendarRoutes);
 
 app.get('/api', (req, res) => {
     res.json({ message: "Welcome to IESv2 Server!" });

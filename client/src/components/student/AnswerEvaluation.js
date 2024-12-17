@@ -35,6 +35,7 @@ const AnswerEvaluation = () => {
   const [error, setError] = useState(null);
   const [activeStep, setActiveStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     fetchForm();
@@ -62,16 +63,127 @@ const AnswerEvaluation = () => {
     }
   };
 
+  // Profanity and inappropriate words list
+  const inappropriateWords = [
+    'fuck', 'shit', 'ass', 'bitch', 'dick', 'pussy', 'cock', 'bastard',
+    'idiot', 'stupid', 'dumb', 'retard', 'moron', 'asshole', 'puta',
+    'gago', 'bobo', 'tanga', 'ulol', 'inutil', 'tarantado', 'putangina',
+    'tangina', 'pakyu', 'lintik', 'kupal', 'tae', 'leche', 'animal',
+    // Add more inappropriate words as needed
+  ];
+
+  const validateAnswer = (question, value) => {
+    if (!value) return 'This field is required';
+
+    switch (question.type) {
+      case 'text':
+        // Check for minimum length (3 characters)
+        if (value.length < 3) {
+          return 'Answer must be at least 3 characters long';
+        }
+        
+        // Check for maximum length (500 characters)
+        if (value.length > 500) {
+          return 'Answer cannot exceed 500 characters';
+        }
+        
+        // Check for random characters/keyboard smashing
+        const randomCharPattern = /(.)\1{4,}/; // Detects 5 or more repeated characters
+        if (randomCharPattern.test(value)) {
+          return 'Please provide a valid answer without repeated characters';
+        }
+        
+        // Check for only numbers
+        if (/^\d+$/.test(value)) {
+          return 'Answer cannot contain only numbers';
+        }
+        
+        // Check for minimum word count (2 words)
+        const words = value.trim().split(/\s+/);
+        if (words.length < 2) {
+          return 'Please provide a more detailed answer (minimum 2 words)';
+        }
+
+        // Check for inappropriate language
+        const lowerCaseValue = value.toLowerCase();
+        const foundInappropriateWords = inappropriateWords.filter(word => 
+          lowerCaseValue.includes(word) || 
+          // Check for intentionally obfuscated words (e.g., "f*ck", "f.u.c.k")
+          lowerCaseValue.replace(/[^a-z]/g, '').includes(word.replace(/[^a-z]/g, ''))
+        );
+
+        if (foundInappropriateWords.length > 0) {
+          return 'Please maintain professional language in your evaluation. Inappropriate words are not allowed.';
+        }
+
+        // Check for excessive capitalization (shouting)
+        const upperCaseCount = (value.match(/[A-Z]/g) || []).length;
+        if (upperCaseCount > value.length * 0.5) {
+          return 'Please avoid excessive use of capital letters';
+        }
+
+        // Check for repetitive punctuation (!!!???)
+        if (/[!?]{2,}/.test(value)) {
+          return 'Please use appropriate punctuation';
+        }
+
+        break;
+
+      case 'rating':
+        const rating = parseInt(value);
+        if (isNaN(rating) || rating < 1 || rating > 5) {
+          return 'Rating must be between 1 and 5';
+        }
+        break;
+
+      case 'multiple_choice':
+        if (!question.options.includes(value)) {
+          return 'Please select a valid option';
+        }
+        break;
+    }
+
+    return null;
+  };
+
   const handleAnswerChange = (questionIndex, value) => {
+    const question = form.questions[questionIndex];
+    const validationError = validateAnswer(question, value);
+    
     setAnswers(prev => ({
       ...prev,
       [questionIndex]: value
+    }));
+
+    // Update errors state
+    setErrors(prev => ({
+      ...prev,
+      [questionIndex]: validationError
     }));
   };
 
   const handleSubmit = async () => {
     try {
       setSubmitting(true);
+      
+      // Validate all answers before submission
+      const newErrors = {};
+      let hasErrors = false;
+
+      form.questions.forEach((question, index) => {
+        const validationError = validateAnswer(question, answers[index]);
+        if (validationError) {
+          newErrors[index] = validationError;
+          hasErrors = true;
+        }
+      });
+
+      if (hasErrors) {
+        setErrors(newErrors);
+        setError('Please correct the errors before submitting');
+        return;
+      }
+
       // Check if all questions are answered
       const unansweredQuestions = form.questions.filter((_, index) => !answers[index]);
       if (unansweredQuestions.length > 0) {
@@ -89,22 +201,13 @@ const AnswerEvaluation = () => {
         const nextWeek = new Date();
         nextWeek.setDate(nextWeek.getDate() + 7);
 
-        // Only include rating if it's a rating question and the value is valid
-        const rating = question.type === 'rating' ? parseInt(answerValue) : undefined;
-        if (rating !== undefined && (isNaN(rating) || rating < 1 || rating > 5)) {
-          throw new Error('Rating must be between 1 and 5');
-        }
-
-        // Only include answer for text or multiple choice questions
-        const answer = question.type === 'text' || question.type === 'multiple_choice' ? answerValue : undefined;
-
         const requestData = {
           evaluationForm: formId,
           instructor: form.createdBy._id,
           student: user.id,
           questionId: question._id,
-          rating,
-          answer,
+          rating: question.type === 'rating' ? parseInt(answerValue) : undefined,
+          answer: question.type === 'text' || question.type === 'multiple_choice' ? answerValue : undefined,
           evaluationPeriod: {
             startDate: currentDate.toISOString(),
             endDate: nextWeek.toISOString()
@@ -119,7 +222,6 @@ const AnswerEvaluation = () => {
           }
         });
 
-        console.log('Response:', response.data);
         return response.data;
       });
 
@@ -137,7 +239,7 @@ const AnswerEvaluation = () => {
         details: error.response?.data?.details || 'No additional details'
       });
       setError(error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to submit evaluation');
-      setActiveStep(0); // Go back to first question if there's an error
+      setActiveStep(0);
     } finally {
       setSubmitting(false);
     }
@@ -265,7 +367,14 @@ const AnswerEvaluation = () => {
             <Typography variant="h6" sx={{ color: '#1a237e', mb: 2 }}>
               {form.questions[activeStep].text}
             </Typography>
-            {renderQuestion(form.questions[activeStep], activeStep)}
+            <FormControl fullWidth error={Boolean(errors[activeStep])}>
+              {renderQuestion(form.questions[activeStep], activeStep)}
+              {errors[activeStep] && (
+                <Typography color="error" variant="caption" sx={{ mt: 1 }}>
+                  {errors[activeStep]}
+                </Typography>
+              )}
+            </FormControl>
           </CardContent>
         </Card>
 
@@ -290,7 +399,7 @@ const AnswerEvaluation = () => {
               <Button
                 variant="contained"
                 onClick={handleSubmit}
-                disabled={submitting}
+                disabled={submitting || Boolean(errors[activeStep])}
                 sx={{ borderRadius: '8px' }}
               >
                 {submitting ? <CircularProgress size={24} /> : 'Submit'}
@@ -299,6 +408,7 @@ const AnswerEvaluation = () => {
               <Button
                 variant="contained"
                 onClick={handleNext}
+                disabled={!answers[activeStep] || Boolean(errors[activeStep])}
                 sx={{ borderRadius: '8px' }}
               >
                 Next

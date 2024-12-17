@@ -70,14 +70,14 @@ const StudentLayout = () => {
         alignItems: 'center',
         gap: 2
       }}>
-        <img 
-          src="/images/buksu-logo.png" 
-          alt="BukSU Logo" 
-          style={{ 
-            width: 40, 
-            height: 40 
-          }} 
-        />
+       <img 
+            src="/buksu-logo.png" 
+            alt="BukSU Logo" 
+            style={{ 
+              width: 40, 
+              height: 40 
+            }} 
+          />
         <Typography
           variant="h6"
           sx={{

@@ -26,48 +26,50 @@ const evaluationFormSchema = new mongoose.Schema({
   },
   targetAudience: {
     type: String,
-    enum: ['student', 'peer', 'self'],
+    enum: ['student', 'faculty', 'self'],
+    required: true,
+  },
+  type: {
+    type: String,
+    enum: ['midterm', 'final'],
     required: true,
   },
   status: {
     type: String,
     enum: ['draft', 'active', 'inactive'],
-    default: 'draft',
+    default: 'active',
   },
-  date: {
-    type: Date,
-    required: false,
-  },
-  type: {
-    type: String,
-    enum: ['evaluation', 'exam', 'assignment'],
-    required: false,
-  },
-  studentId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: false,
+  evaluationPeriod: {
+    startDate: {
+      type: Date,
+      required: true
+    },
+    endDate: {
+      type: Date,
+      required: true
+    }
   },
   questions: [questionSchema],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: true
   },
   createdAt: {
     type: Date,
-    default: Date.now,
+    default: Date.now
   },
   updatedAt: {
     type: Date,
-    default: Date.now,
-  },
+    default: Date.now
+  }
 });
 
 evaluationFormSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
+  this.updatedAt = new Date();
   next();
 });
 
 const EvaluationForm = mongoose.model('EvaluationForm', evaluationFormSchema);
+
 module.exports = EvaluationForm;

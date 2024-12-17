@@ -62,40 +62,35 @@ export function LoginForm() {
         }
       }
 
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/login`, {
+      const userData = await login({
         email: formData.email,
         password: formData.password,
         recaptchaResponse: recaptchaValue
       });
 
-      if (response.data.token) {
-        console.log('Login Attempt:', formData.email);
-        const userData = await login({
-          email: formData.email,
-          password: formData.password
-        });
+      console.log('User Data:', userData);
 
-        console.log('User Data:', userData);
-
-        // Role-based routing
-        switch(userData.role) {
-          case 'admin':
-          case 'faculty':
-            console.log('Navigating to /admin/profile for role:', userData.role);
-            navigate('/admin/profile');
-            break;
-          case 'student':
-            console.log('Navigating to /student/profile');
-            navigate('/student/profile');
-            break;
-          default:
-            console.warn('Unrecognized role, navigating to login');
-            navigate('/login');
-        }
+      // Role-based routing
+      switch(userData.role) {
+        case 'admin':
+        case 'faculty':
+          console.log('Navigating to /admin/profile for role:', userData.role);
+          navigate('/admin/profile');
+          break;
+        case 'student':
+          console.log('Navigating to /student/profile');
+          navigate('/student/profile');
+          break;
+        default:
+          console.warn('Unrecognized role, navigating to login');
+          navigate('/login');
       }
     } catch (err) {
       console.error('Login Error:', err);
       setError(err.response?.data?.message || 'Failed to login. Please try again.');
+      if (window.grecaptcha) {
+        window.grecaptcha.reset();
+      }
     } finally {
       setLoading(false);
     }

@@ -86,7 +86,7 @@ const AdminLayout = () => {
           gap: 2
         }}>
           <img 
-            src="/images/buksu-logo.png" 
+            src="/buksu-logo.png" 
             alt="BukSU Logo" 
             style={{ 
               width: 40, 

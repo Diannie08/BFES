@@ -3,6 +3,7 @@ const router = express.Router();
 const EvaluationForm = require('../models/evaluationForm.model');
 const EvaluationResponse = require('../models/evaluationResponse.model');
 const { verifyToken } = require('../middleware/auth');
+const emailService = require('../services/email.service');
 
 // Get all evaluation forms
 router.get('/', verifyToken, async (req, res) => {
@@ -279,27 +280,34 @@ router.get('/:id', verifyToken, async (req, res) => {
 // Create a new evaluation form
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { title, description, targetAudience, questions, studentId, type, date } = req.body;
+    console.log('Creating new evaluation form with data:', req.body);
     
-    if (!studentId || !type || !date) {
-      return res.status(400).json({ message: 'studentId, type, and date are required fields' });
-    }
-    
-    const evaluationForm = new EvaluationForm({
-      title,
-      description,
-      targetAudience,
-      questions,
-      studentId,
-      type,
-      date,
-      createdBy: req.user._id,
+    const form = new EvaluationForm({
+      ...req.body,
+      createdBy: req.user._id
     });
+    
+    const savedForm = await form.save();
+    console.log('Form saved successfully:', savedForm);
 
-    await evaluationForm.save();
-    res.status(201).json(evaluationForm);
+    // Send notification emails to all students
+    try {
+      console.log('Attempting to send notification emails');
+      await emailService.sendNewFormNotification(
+        req.body.title,
+        req.body.description,
+        req.body.startDate,
+        req.body.endDate
+      );
+      console.log('Notification emails sent successfully');
+    } catch (emailError) {
+      console.error('Error sending notification emails:', emailError);
+      // Don't fail the request if email sending fails
+    }
+
+    res.status(201).json(savedForm);
   } catch (error) {
-    console.error('Error creating evaluation form:', error);
+    console.error('Error creating form:', error);
     res.status(500).json({ message: 'Error creating evaluation form', error: error.message });
   }
 });

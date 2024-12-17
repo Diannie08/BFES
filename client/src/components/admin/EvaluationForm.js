@@ -34,7 +34,10 @@ const EvaluationForm = () => {
     description: '',
     targetAudience: 'student',
     type: '',
-    date: '',
+    evaluationPeriod: {
+      startDate: '',
+      endDate: ''
+    },
     questions: [
       {
         text: '',
@@ -104,13 +107,11 @@ const EvaluationForm = () => {
     setLoading(true);
 
     try {
-      const userRole = 'student'; // Replace with actual user role logic
-      const actualStudentId = '60d5ec49e5f8d95e4c8b4567'; // Replace with actual logic to get the student ID
       const data = { 
         ...formData, 
-        studentId: userRole === 'student' ? actualStudentId : null, 
-        type: formData.type.toLowerCase(),
-        status: 'active' // Set status to active by default
+        status: 'active', // Set status to active by default
+        startDate: formData.evaluationPeriod.startDate,
+        endDate: formData.evaluationPeriod.endDate
       };
 
       if (id) {
@@ -150,68 +151,83 @@ const EvaluationForm = () => {
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <TextField
+                required
                 fullWidth
                 label="Title"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                required
               />
             </Grid>
-            
             <Grid item xs={12}>
               <TextField
+                required
                 fullWidth
-                label="Description"
                 multiline
                 rows={3}
+                label="Description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                required
               />
             </Grid>
-            
-            <Grid item xs={12}>
-              <FormControl fullWidth>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth required>
                 <InputLabel>Target Audience</InputLabel>
                 <Select
                   value={formData.targetAudience}
                   onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
-                  required
                 >
                   <MenuItem value="student">Student</MenuItem>
-                  <MenuItem value="peer">Peer</MenuItem>
+                  <MenuItem value="faculty">Faculty</MenuItem>
                   <MenuItem value="self">Self</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
-            
-            <Grid item xs={12}>
-              <FormControl fullWidth>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth required>
                 <InputLabel>Type</InputLabel>
                 <Select
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  required
                 >
-                  <MenuItem value="evaluation">Evaluation</MenuItem>
-                  <MenuItem value="exam">Exam</MenuItem>
-                  <MenuItem value="assignment">Assignment</MenuItem>
+                  <MenuItem value="midterm">Midterm</MenuItem>
+                  <MenuItem value="final">Final</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
-            
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
               <TextField
-                fullWidth
-                label="Date"
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                 required
+                fullWidth
+                type="date"
+                label="Start Date"
+                value={formData.evaluationPeriod.startDate}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  evaluationPeriod: {
+                    ...formData.evaluationPeriod,
+                    startDate: e.target.value
+                  }
+                })}
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                required
+                fullWidth
+                type="date"
+                label="End Date"
+                value={formData.evaluationPeriod.endDate}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  evaluationPeriod: {
+                    ...formData.evaluationPeriod,
+                    endDate: e.target.value
+                  }
+                })}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
             <Grid item xs={12}>
               <Typography variant="h6" gutterBottom>
                 Questions
