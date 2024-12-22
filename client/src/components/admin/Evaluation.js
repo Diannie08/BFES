@@ -57,6 +57,9 @@ const Evaluation = () => {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [expandedRows, setExpandedRows] = useState({});
+  const [isLocked, setIsLocked] = useState(false);
+  const [editingAdminId, setEditingAdminId] = useState(null);
+  const currentAdminId = 'current-admin-id'; // Replace with actual current admin ID
 
   useEffect(() => {
     fetchForms();
@@ -76,8 +79,19 @@ const Evaluation = () => {
     navigate('/admin/evaluation/create');
   };
 
-  const handleEditForm = (formId) => {
+  const handleEditForm = async (formId) => {
+    await checkFormLock(formId);
+    if (isLocked && editingAdminId !== currentAdminId) {
+      showSnackbar('This form is currently being edited by another admin.', 'warning');
+      return;
+    }
+    // Proceed with editing
+    setEditingAdminId(currentAdminId);
     navigate(`/admin/evaluation/edit/${formId}`);
+  };
+
+  const handleStopEditing = () => {
+    setEditingAdminId(null);
   };
 
   const handleDeleteClick = (form) => {
@@ -182,6 +196,13 @@ const Evaluation = () => {
       default:
         return '#757575';
     }
+  };
+
+  const checkFormLock = async (formId) => {
+    // Simulate checking if the form is locked and by which admin
+    const lockStatus = await evaluationService.checkLockStatus(formId);
+    setIsLocked(lockStatus.isLocked);
+    setEditingAdminId(lockStatus.adminId);
   };
 
   const ResultsDialog = () => {

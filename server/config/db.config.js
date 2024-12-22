@@ -11,7 +11,8 @@ const connectDB = async () => {
             ssl: true,
             tls: true,
             retryWrites: true,
-            w: 'majority'
+            w: 'majority',
+            serverSelectionTimeoutMS: 20000 // Increase timeout to 20 seconds
         };
 
         // Remove any existing connections
