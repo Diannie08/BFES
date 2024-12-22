@@ -79,6 +79,22 @@ const Evaluation = () => {
     navigate('/admin/evaluation/create');
   };
 
+  async function attemptEditForm(formId) {
+    try {
+      const lockStatus = await evaluationService.checkLockStatus(formId);
+      
+      if (lockStatus.isLocked) {
+        alert(`The form is currently being edited by another admin (ID: ${lockStatus.adminId}).`);
+        return; // Prevent editing
+      }
+      
+      // Proceed with editing the form
+      handleEditForm(formId);
+    } catch (error) {
+      console.error('Error checking lock status:', error);
+    }
+  }
+
   const handleEditForm = async (formId) => {
     await checkFormLock(formId);
     if (isLocked && editingAdminId !== currentAdminId) {
@@ -415,7 +431,7 @@ const Evaluation = () => {
                   <Tooltip title="Edit Form">
                     <IconButton
                       size="small"
-                      onClick={() => handleEditForm(form._id)}
+                      onClick={() => attemptEditForm(form._id)}
                       color="primary"
                       sx={{ 
                         backgroundColor: 'rgba(0, 0, 0, 0.04)',

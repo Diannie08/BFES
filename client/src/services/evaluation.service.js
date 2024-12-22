@@ -144,19 +144,27 @@ class EvaluationService {
     }
   }
 
+  lockStatusMap = {}; // Map to hold lock status for each form
+
   checkLockStatus(formId) {
-    // Check if formId is provided and simulate lock status accordingly
     if (!formId) {
       throw new Error('formId is required to check lock status.');
+    }
+
+    // Check if the form is already locked
+    const lockStatus = this.lockStatusMap[formId];
+    if (lockStatus) {
+      return Promise.resolve(lockStatus); // Return existing lock status
     }
 
     // Simulate fetching lock status from the server based on formId
     return new Promise((resolve) => {
       setTimeout(() => {
-        // Simulate a locked form by returning a random admin ID
+        // Simulate a locked form by returning a random admin ID based on formId
         const isLocked = Math.random() > 0.5; // Randomly lock the form
-        const adminId = isLocked ? 'admin-1-id' : null; // Simulate admin ID if locked
-        resolve({ isLocked, adminId, formId }); // Include formId in the response
+        const adminId = isLocked ? `admin-${Math.floor(Math.random() * 3) + 1}-id` : null; // Simulate admin ID if locked
+        this.lockStatusMap[formId] = { formId, isLocked, adminId }; // Store in the map
+        resolve(this.lockStatusMap[formId]); // Include formId in the response
       }, 1000);
     });
   }
